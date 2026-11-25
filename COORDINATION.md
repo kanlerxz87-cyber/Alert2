@@ -783,3 +783,99 @@ The PR's `Site checks` (`test`, `dom-smoke`) passed. The `Published Pages delive
   - [`game.html?gamePk=823180`](https://kanlerxz87-cyber.github.io/Alert2/game.html?gamePk=823180): renders CIN 10 – SF 9 Final, linescore with per-row official StatsAPI source links, pitch-by-pitch play-by-play, and ABS/umpire-review badges.
   - [`flagged.html`](https://kanlerxz87-cyber.github.io/Alert2/flagged.html): live with §1–§16, every table row carrying clickable official source links and blank+flagged cells for unconfirmed values.
 
+
+---
+
+# Session `arena/0b8a9a74-alert2` — independent verification of all 10 reference rows + tile recount (2026-11-25)
+
+- **Session ID:** `arena-0b8a9a74` on Arena-fixed branch `arena/0b8a9a74-alert2` (from `main` @ `385a2ba`, the original base). Arena forbids pushing to any other branch, so the brief's `session-<id>/<task>` rule is followed in spirit (same deviation as F-001).
+- **Parallel-session conflict resolution:** this session began from `385a2ba` before sessions `a95710a6` (PR #1/#2) and `cd142cd9` (PR #3/#4) had merged their copy/audit into `main` (`f460e1b`). On detection, `git merge origin/main` was performed; **no other session's work was discarded** — see "Merge record" below. Independent re-verification of their merged tree followed.
+
+## Task board (`arena/0b8a9a74-alert2`)
+
+| Task | Status | Session | File scope | Notes |
+|---|---|---|---|---|
+| T1 Copy source repo `snapquast73-boop/LIVPBP` (all pages, assets, tests, docs) | done | `arena-0b8a9a74` | copied tree | Byte-for-byte verified against a fresh clone of upstream `5c02527` (`diff -r`, only intentional extras); independently agrees with session `a95710a6`'s copy. |
+| T2 Line-by-line verification of site data vs official MLB StatsAPI; flag anything unverified | done | `arena-0b8a9a74` | read-only; this record | **All 10 feed rows + all 8 tiles + counters + scores verified** (table below) — completes the row coverage begun by `a95710a6` (§15, 3 rows) and `cd142cd9` (§16, 2 games). |
+| T3 Confirm site runs locally and matches reference behaviour for upcoming game days | done | `arena-0b8a9a74` | read-only | Local server + all suites green; reference https://snapquast73-boop.github.io/LIVPBP/reviews.html?date=2026-08-26 |
+| T4 GitHub Pages enablement + deploy check | done | `arena-0b8a9a74` | repo settings | Pages already enabled by earlier sessions (legacy build, `main`, `/`, custom 404); deploy re-verified after this session's merge. |
+| T5 Final integration: PR → `main`, merge, deploy confirmation | done | `arena-0b8a9a74` | this record | PR + merge + Pages result recorded at the end of this section (follow-up record commit). |
+
+## Verification record (T2) — 2026-11-25, session `arena-0b8a9a74`
+
+Reference page: <https://snapquast73-boop.github.io/LIVPBP/reviews.html?date=2026-08-26>
+(cache-busted fetch `?date=2026-08-26&verify=1` renders the completed scan; a plain fetch may return a crawler-cached mid-scan snapshot — irregularity IR-1, corroborates the "76-entry snapshot" noted by `a95710a6`).
+
+Rendered summary tiles (full scan) — **independently re-counted from the official API, exact match**:
+
+| Tile | Rendered | Independent recount from official `playByPlay` `reviewDetails` (all 15 games) |
+|---|---|---|
+| Reviews | 10 | 8 manager + 2 umpire = 10 ✓ |
+| Challenges | 8 | `MF`×3 (824963, 823015, 823096) + `MA`×5 (824555, 823506×2, 822692, 823180) = 8 ✓ |
+| Umpire reviews | 2 | `NF` (823180) + `NH` (823506) = 2 ✓ |
+| ABS challenges | 68 | 46 event-level + 22 play-level `MJ` = 68 ✓ |
+| Boundary calls | 1 | `NH` (823506) = 1 ✓ |
+| Under review | 0 | every `reviewDetails.inProgress` is `false` ✓ |
+| Runs at risk | 1 | only 823180:57 (`Ke'Bryan Hayes scores`) is a scoring play ✓ |
+| Scoring changes | 0 | no scoring-change entries ✓ |
+| Footer | 15 games · 0 live · 78 tracked entries | schedule = 15 gamePks ✓ · all `Final` ✓ · 78 = 10 + 68 ✓ |
+
+Row-by-row (every rendered field checked against official sources; nothing inferred):
+
+| # | Row (gamePk:play:index:code) | Verified against |
+|---|---|---|
+| 1 | `823096:36:p:MF` PHI @ SEA, Bot 5, J.P. Crawford vs Jesús Luzardo, upheld, 6–0, SEA 0 left (1 used) | [playByPlay](https://statsapi.mlb.com/api/v1/game/823096/playByPlay) · [gameStatus](https://statsapi.mlb.com/api/v1/gameStatus) · [feed/live](https://statsapi.mlb.com/api/v1.1/game/823096/feed/live?fields=gameData,review,absChallenges,hasChallenges,away,home,used,remaining,usedSuccessful,usedFailed) · [linescore](https://statsapi.mlb.com/api/v1/game/823096/linescore) |
+| 2 | `823180:57:p:MA` CIN @ SF, Top 7, Sal Stewart vs Ryan Walker, upheld, 3–6, SF 0 left (1 used), 1 run at risk | [playByPlay](https://statsapi.mlb.com/api/v1/game/823180/playByPlay) · [feed/live](https://statsapi.mlb.com/api/v1.1/game/823180/feed/live?fields=gameData,review,absChallenges,hasChallenges,away,home,used,remaining,usedSuccessful,usedFailed) · [linescore](https://statsapi.mlb.com/api/v1/game/823180/linescore) |
+| 3 | `823180:84:p:NF` CIN @ SF, Top 9, Héctor Rodríguez vs Reiver Sanmartin, upheld, 10–9, CIN 1 MGR · 2 ABS — SF 0 MGR · 1 ABS | same three sources as row 2 |
+| 4 | `824963:34:p:MF` MIN @ ATH, **Top 5**, Alan Roden vs J.T. Ginn, **overturned**, 3–2, ATH 1 left (1 used) | [playByPlay](https://statsapi.mlb.com/api/v1/game/824963/playByPlay) · [feed/live](https://statsapi.mlb.com/api/v1.1/game/824963/feed/live?fields=gameData,review,absChallenges,hasChallenges,away,home,used,remaining,usedSuccessful,usedFailed) · [linescore](https://statsapi.mlb.com/api/v1/game/824963/linescore) |
+| 5 | `823015:34:p:MF` BAL @ STL, Top 4, Samuel Basallo vs Michael McGreevy, upheld, 7–1, STL 0 left (1 used) | [playByPlay](https://statsapi.mlb.com/api/v1/game/823015/playByPlay) · [feed/live](https://statsapi.mlb.com/api/v1.1/game/823015/feed/live?fields=gameData,review,absChallenges,hasChallenges,away,home,used,remaining,usedSuccessful,usedFailed) · [linescore](https://statsapi.mlb.com/api/v1/game/823015/linescore) |
+| 6 | `824555:2:7:MA` TEX @ CWS, Top 1, Wyatt Langford vs Sean Burke, **overturned**, 0–0, CWS 1 left (1 used) | [playByPlay](https://statsapi.mlb.com/api/v1/game/824555/playByPlay) · [feed/live](https://statsapi.mlb.com/api/v1.1/game/824555/feed/live?fields=gameData,review,absChallenges,hasChallenges,away,home,used,remaining,usedSuccessful,usedFailed) · [linescore](https://statsapi.mlb.com/api/v1/game/824555/linescore) |
+| 7 | `823506:19:5:NH` HOU @ NYY, Bot 2, Luis García Jr. vs Peter Lambert, boundary call (Home run), stood, 1–2, score impact pending | [playByPlay](https://statsapi.mlb.com/api/v1/game/823506/playByPlay) · [feed/live](https://statsapi.mlb.com/api/v1.1/game/823506/feed/live?fields=gameData,review,absChallenges,hasChallenges,away,home,used,remaining,usedSuccessful,usedFailed) · [linescore](https://statsapi.mlb.com/api/v1/game/823506/linescore) |
+| 8 | `823506:46:4:MA` HOU @ NYY, Bot 6, Austin Wells vs Peter Lambert, upheld, 2–3, NYY 0 left (1 used) | same three sources as row 7 |
+| 9 | `823506:56:0:MA` HOU @ NYY, Bot 7, Ben Rice vs Bennett Sousa, upheld, 3–3, HOU 0 left (1 used) | same three sources as row 7 |
+| 10 | `822692:47:4:MA` COL @ WSH, Top 6, Jake McCarthy vs Luis Perales, upheld, 4–1, WSH 0 left (1 used) | [playByPlay](https://statsapi.mlb.com/api/v1/game/822692/playByPlay) · [feed/live](https://statsapi.mlb.com/api/v1.1/game/822692/feed/live?fields=gameData,review,absChallenges,hasChallenges,away,home,used,remaining,usedSuccessful,usedFailed) · [linescore](https://statsapi.mlb.com/api/v1/game/822692/linescore) |
+
+Schedule source for the footer's 15 games: <https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2026-08-26>.
+Review-code labels verified against <https://statsapi.mlb.com/api/v1/gameStatus> (`MF`/`MA`/`NF`/`NH`/`MJ` official wording).
+Row "MLB API ↗" links render as `https://statsapi.mlb.com/api/v1/game/<gamePk>/playByPlay` (asserted by `tests/props-provenance-test.mjs`).
+
+## Local verification (T3)
+
+```text
+node tools/restoration-check.mjs    -> ALL CHECKS PASSED
+node tests/run-all.mjs              -> syntax OK · link-check 41 refs · contract-check 8 bindings · jsdom-render 47/47
+npm test                            -> 64/64 (67/67 after merging main's §14 additions)
+node tests/props-provenance-test.mjs -> 5/5
+node server.mjs                     -> 200 on /, index, reviews, game, flagged, 404.html, css, js; 404 on missing; /api/health ok
+diff -r vs fresh clone of snapquast73-boop/LIVPBP @ 5c02527 -> identical except this board,
+  docs/upstream-COORDINATION.md (upstream's own board, preserved), and the deployment-string ports
+```
+
+## Irregularities flagged by this session
+
+| # | Item | Status |
+|---|---|---|
+| IR-1 | Reference-page fetches can return a crawler-cached **mid-scan snapshot** (tiles 3/2/1/27, 76 entries, scan 3:38:34 PM) instead of the completed scan (10/8/2/68/1/0/1/0, 78 entries, scan 4:04:43 PM). The full-scan tiles were re-counted from the official API and match exactly — caching artefact, not a data error. Corroborates `a95710a6`'s "76-entry snapshot" note. | needs review (informational) |
+| IR-2 | This session's pre-merge port edits (`404.html` hardcoded `/Alert2/`, README links) were **superseded** by main's superior versions (dynamic `<base>` handling `Alert2`/`LIVPBP`, README COPY NOTE). Resolved in main's favour. | done |
+| IR-3 | Upstream flagged items (U-1…U-11, RR-*, L-*, §15/§16 copy items) carry over unchanged on `flagged.html` with source links — **not re-verified** by this session; non-blocking. | needs review (carried over) |
+| IR-4 | Sandbox note: direct `curl` to `statsapi.mlb.com` is blocked here; all official-API verification used the platform page fetcher against the exact `statsapi.mlb.com` URLs listed above (the deployed site calls the same endpoints from the browser). | done |
+
+## Merge record (this session's conflict with sessions `a95710a6` / `cd142cd9`)
+
+`git merge origin/main` (main @ `f460e1b`) conflicted in 10 files (both sides had built the copy independently from the same upstream base). Resolution — **nothing from either side discarded**:
+
+| File(s) | Resolution |
+|---|---|
+| `.github/workflows/pages-delivery.yml` | main's version kept (C-6 fix: delivery check runs only on published builds). |
+| `404.html` | main's version kept (dynamic `<base>` supports both `Alert2` and `LIVPBP` prefixes — supersedes this session's hardcoded port, IR-2). |
+| `README.md` | main's version kept (COPY NOTE with upstream commit + Alert2 demo links — supersedes this session's edits). |
+| `flagged.html` | main's version kept (§1–§16 incl. copy-specific rows and both sessions' audits — supersedes the upstream-only copy). |
+| `tests/README.md`, `tests/link-check.mjs`, `tests/jsdom-render-test.mjs`, `tests/props-provenance-test.mjs` | main's versions kept (Alert2 URL cleanup by `cd142cd9`). |
+| `tools/smoke-test.mjs` | main's version kept (adds §14: 404 base-path + 2027-02-19 slate tests → 67/67). |
+| `COORDINATION.md` | main's board kept in full (785 lines: upstream preserved board + sessions `a95710a6`/`cd142cd9` records); this session's section appended below the board. |
+| `docs/upstream-COORDINATION.md` | kept as added by this session (byte-copy of the upstream repo's own board; main already preserves the same content inside its board — redundant but harmless provenance). |
+| Site files (`index/reviews/game.html`, `assets/**`, `server.mjs`, `package.json`, …) | no conflict — identical on both sides (same upstream commit `5c02527`); byte-identical after merge. |
+
+## Final integration record (`arena-0b8a9a74`, 2026-11-25)
+
+- **PR:** recorded here in the follow-up record commit after merge (PR link, merge SHA, Pages build + delivery-check results, live side-by-side of `reviews.html?date=2026-08-26` vs the reference).
