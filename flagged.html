@@ -1040,6 +1040,76 @@ node server.mjs                  # optional persistence backend (feed log + SSE)
       all 5 rows in §15 carry external source links.
     </p>
 
+    <h2>16. Independent Line-by-Line Audit, Upcoming Game-Day &amp; API Irregularity Findings (2026-11-25, session <code>cd142cd9</code>)</h2>
+    <p style="color:var(--muted);font-size:13px">
+      Independent verification pass on top of <code>main</code> (<code>db38749</code>, preserving 100% of
+      session <code>a95710a6</code>'s §15 copy &amp; Pages integration work). Every row below was checked
+      directly against the official MLB StatsAPI and GitHub API on <strong>2026-11-25</strong>; any value
+      that cannot be confirmed by an official source is left blank and flagged as unverified.
+    </p>
+    <table class="flag-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Area / Subject</th>
+          <th>Official Verified Value</th>
+          <th>Observed / Action Taken in <code>Alert2</code></th>
+          <th>Official Source</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A2-V04</td>
+          <td class="wrap">Official MLB registries (<code>teams</code>, <code>gameStatus</code>, <code>eventTypes</code>)</td>
+          <td class="wrap">30 MLB clubs (incl. ID <code>133</code> Athletics <code>ATH</code>), review status codes <code>IH</code> / <code>M*</code> / <code>N*</code>, and pending-ruling event types <code>os_ruling_pending_primary</code> &amp; <code>os_ruling_pending_prior</code> confirmed live on 2026-11-25.</td>
+          <td class="wrap"><code>assets/js/reviews.js</code> and <code>assets/js/api.js</code> read these registries dynamically at runtime without hardcoding unverified values.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/teams?sportId=1" target="_blank" rel="noopener">MLB teams</a> · <a href="https://statsapi.mlb.com/api/v1/gameStatus" target="_blank" rel="noopener">MLB gameStatus</a> · <a href="https://statsapi.mlb.com/api/v1/eventTypes" target="_blank" rel="noopener">MLB eventTypes</a></td>
+          <td class="status-ok">Verified</td>
+        </tr>
+        <tr>
+          <td>A2-V05</td>
+          <td class="wrap">Upcoming game days (2027 Spring Training &amp; Opening Day)</td>
+          <td class="wrap">628 upcoming MLB games scheduled <code>2026-11-25</code>–<code>2027-04-05</code>: first game day is <code>2027-02-19</code> (17 Spring Training games, e.g. <code>gamePk=868573</code> TOR @ PIT, <code>abstractGameState: "Preview"</code>, <code>statusCode: "S"</code>); regular season opens <code>2027-03-24</code> (1 game) / <code>2027-03-25</code> (14 games).</td>
+          <td class="wrap">Added §[14] smoke tests in <code>tools/smoke-test.mjs</code> verifying upcoming <code>Preview</code> rendering on <code>index.html?date=2027-02-19</code> and <code>reviews.html?date=2027-02-19</code> plus <code>404.html</code> project-root <code>&lt;base&gt;</code> resolution to <code>/Alert2/</code> (<code>npm test</code> → 67/67 passed).</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2027-02-19&amp;hydrate=probablePitcher,linescore,decisions,review" target="_blank" rel="noopener">schedule 2027-02-19</a> · <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;startDate=2026-11-25&amp;endDate=2027-04-05&amp;fields=dates,date,totalGames" target="_blank" rel="noopener">upcoming range</a></td>
+          <td class="status-ok">Verified</td>
+        </tr>
+        <tr>
+          <td>A2-F03</td>
+          <td class="wrap">Official API data irregularity: <code>game/823180</code> play 84 (<code>2026-08-26</code>) prose vs structured <code>reviewDetails</code></td>
+          <td class="wrap"><code>result.description</code> describes two umpire reviews (“play at 1st” and “slide interference”), while structured <code>reviewDetails</code> holds only one code: <code>{"reviewType":"NF","isOverturned":false,"inProgress":false}</code>.</td>
+          <td class="wrap">The site faithfully displays the single structured <code>NF</code> review and preserves MLB's complete official prose verbatim; it does not fabricate a second structured review record.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/game/823180/playByPlay" target="_blank" rel="noopener">MLB 823180 playByPlay (atBatIndex 84)</a></td>
+          <td class="status-flag">Flagged — upstream API shape</td>
+        </tr>
+        <tr>
+          <td>A2-F04</td>
+          <td class="wrap">Offseason live-polling observation limit (<code>2026-11-25</code>)</td>
+          <td class="wrap"><code>totalGames: 0</code> on <code>2026-11-25</code>; next MLB game day is <code>2027-02-19</code>.</td>
+          <td class="wrap">Live <code>Preview</code> → <code>Live</code> state transitions cannot be observed against live MLB servers until <code>2027-02-19</code>; covered locally by fixture/smoke tests (§[2]–§[5], §[14]).</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2026-11-25" target="_blank" rel="noopener">schedule 2026-11-25</a> · <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2027-02-19" target="_blank" rel="noopener">schedule 2027-02-19</a></td>
+          <td class="status-flag">Flagged — offseason observation limit</td>
+        </tr>
+        <tr>
+          <td>A2-F06</td>
+          <td class="wrap">Parallel-session integration &amp; fixed branch naming (<code>cd142cd9</code> + <code>a95710a6</code>)</td>
+          <td class="wrap"></td>
+          <td class="wrap">Both sessions ran on Arena-fixed branches (<code>arena/a95710a6-alert2</code> and <code>arena/cd142cd9-alert2</code> rather than <code>session-&lt;id&gt;/&lt;task&gt;</code>). When <code>a95710a6</code> merged PR #1 &amp; PR #2 into <code>main</code> (<code>db38749</code>), session <code>cd142cd9</code> rebased cleanly onto <code>origin/main</code>, kept 100% of <code>a95710a6</code>'s work, and merged only strictly additive fixes/tests.</td>
+          <td class="wrap"><a href="https://github.com/kanlerxz87-cyber/Alert2/pull/1" target="_blank" rel="noopener">PR #1</a> · <a href="https://github.com/kanlerxz87-cyber/Alert2/pull/2" target="_blank" rel="noopener">PR #2</a> · <a href="https://github.com/kanlerxz87-cyber/Alert2/branches" target="_blank" rel="noopener">Alert2 branches</a></td>
+          <td class="status-ok">Resolved — zero work discarded</td>
+        </tr>
+        <tr>
+          <td>A2-F07</td>
+          <td class="wrap">Remaining upstream <code>LIVPBP</code> links in test docs/comments</td>
+          <td class="wrap"><code>tests/README.md</code> and <code>tests/link-check.mjs</code> still referenced <code>snapquast73-boop/LIVPBP</code> / <code>/LIVPBP/</code> after the initial copy.</td>
+          <td class="wrap">Updated to <code>kanlerxz87-cyber/Alert2</code> and <code>/Alert2/</code> so all active code, config, and test documentation matches this repository.</td>
+          <td class="wrap"><a href="https://github.com/kanlerxz87-cyber/Alert2/blob/main/tests/README.md" target="_blank" rel="noopener">Alert2 tests/README.md</a> · <a href="https://github.com/kanlerxz87-cyber/Alert2/blob/main/tests/link-check.mjs" target="_blank" rel="noopener">Alert2 tests/link-check.mjs</a></td>
+          <td class="status-ok">Fixed</td>
+        </tr>
+      </tbody>
+    </table>
+
   </main>
 
   <footer class="site-footer">

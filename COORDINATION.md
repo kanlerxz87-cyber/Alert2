@@ -744,3 +744,28 @@ The PR's `Site checks` (`test`, `dom-smoke`) passed. The `Published Pages delive
   - [`/game.html?gamePk=823180`](https://kanlerxz87-cyber.github.io/Alert2/game.html?gamePk=823180) renders the official 10–9 CIN @ SF header, linescore with per-row StatsAPI source links, play-by-play, ABS/umpire-review indicators and box score ([schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2026-08-26), [playByPlay](https://statsapi.mlb.com/api/v1/game/823180/playByPlay)).
   - [`/flagged.html`](https://kanlerxz87-cyber.github.io/Alert2/flagged.html) is live with §1–§15; all 112 data rows carry external source links; unverifiable Before-review scores remain blank and flagged (C-3), as do the inherited upstream irregularities (C-5).
 - **Sources for the copy:** [source tree @ `5c02527`](https://api.github.com/repos/snapquast73-boop/LIVPBP/git/trees/5c02527d3c7a56ea66c698cfabff80a407b6dfd3?recursive=1), [reference page](https://snapquast73-boop.github.io/LIVPBP/reviews.html?date=2026-08-26), [official MLB StatsAPI](https://statsapi.mlb.com/), [GitHub Pages docs](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site). All flagged items are non-blocking; the site is live.
+
+---
+
+# Session `arena/cd142cd9-alert2` — independent line-by-line audit, upcoming game-day tests & doc cleanup (`2026-11-25`)
+
+- **Session ID:** `cd142cd9` on Arena-fixed branch `arena/cd142cd9-alert2`.
+- **Parallel-session conflict resolution:** Session `cd142cd9` began concurrently from `385a2ba` (claiming tasks `A2-T1`–`A2-T5`). Before pushing, `git fetch origin && git rebase origin/main` detected that session `a95710a6` had already merged [PR #1](https://github.com/kanlerxz87-cyber/Alert2/pull/1) and [PR #2](https://github.com/kanlerxz87-cyber/Alert2/pull/2) into `main` (`db38749`). To preserve 100% of `a95710a6`'s work without discarding any changes (including the `C-6` CI fix in `.github/workflows/pages-delivery.yml`, `404.html`, `flagged.html` §15, and `COORDINATION.md`), session `cd142cd9` rebased cleanly onto `origin/main` (`db38749`) and contributed only strictly additive verified improvements.
+
+## Task board (`arena/cd142cd9-alert2`)
+
+| Task | Status | Session | File scope | Official Source |
+|---|---|---|---|---|
+| `A2-A1` Independent line-by-line audit against live MLB StatsAPI (`2026-08-26` games `823096` & `823180`, `teams`, `gameStatus`, `eventTypes`, upcoming `2027-02-19` / `2027-03-24`) | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | read-only verification; `flagged.html` §16 | [MLB `game/823180/playByPlay`](https://statsapi.mlb.com/api/v1/game/823180/playByPlay) · [MLB `schedule` `2027-02-19`](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2027-02-19&hydrate=probablePitcher,linescore,decisions,review) |
+| `A2-A2` Clean remaining upstream `/LIVPBP/` links in `tests/README.md` & `tests/link-check.mjs` | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | `tests/README.md`, `tests/link-check.mjs` | [Alert2 GitHub](https://github.com/kanlerxz87-cyber/Alert2) |
+| `A2-A3` Add §[14] smoke tests in `tools/smoke-test.mjs` for `404.html` `<base href="/Alert2/">` and upcoming `2027-02-19` `Preview` slate (`index.html` & `reviews.html`) | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | `tools/smoke-test.mjs` | [MLB `schedule` `2027-02-19`](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2027-02-19&hydrate=probablePitcher,linescore,decisions,review) |
+| `A2-A4` Append `flagged.html` §16 (incl. newly surfaced `A2-F03` game `823180` play 84 dual-review prose vs single `NF`, `A2-F04` offseason limit, `A2-F06` parallel merge, `A2-F07` test doc cleanup) | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | `flagged.html`, `COORDINATION.md` | [MLB `game/823180/playByPlay`](https://statsapi.mlb.com/api/v1/game/823180/playByPlay) |
+| `A2-A5` Open PR `arena/cd142cd9-alert2` → `main`, confirm CI passes, merge, and verify live Pages deployment (`https://kanlerxz87-cyber.github.io/Alert2/`) | `in progress` | `cd142cd9` (`arena/cd142cd9-alert2`) | `COORDINATION.md` | [Alert2 Pages](https://kanlerxz87-cyber.github.io/Alert2/) |
+
+## Local Verification (`cd142cd9`, 2026-11-25)
+
+- `npm test` (`tools/smoke-test.mjs`): **67 passed, 0 failed** (up from 64/64 with 3 new §[14] checks).
+- `node tests/run-all.mjs`: **PASS** (`syntax` OK · `link-check` 41/41 · `contract-check` 8/8 · `jsdom-render-test` 47/47).
+- `node tools/restoration-check.mjs`: **ALL CHECKS PASSED**.
+- `node tests/props-provenance-test.mjs`: **5 passed, 0 failed**.
+
