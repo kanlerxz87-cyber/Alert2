@@ -7,7 +7,11 @@
   <!-- GitHub Pages serves this file for unmatched paths at any depth, where
        a plain relative stylesheet/home link would break. Resolve both from
        the project root (or the server root when run locally). -->
-  <script>document.write('<base href="' + (location.pathname.indexOf('/Alert2/') === 0 ? '/Alert2/' : '/') + '">');</script>
+  <script>(function () {
+    var match = location.pathname.match(/^\/([^/]+)\//);
+    var project = match && (match[1] === 'Alert2' || match[1] === 'LIVPBP') ? match[1] : '';
+    document.write('<base href="' + (project ? '/' + project + '/' : '/') + '">');
+  })();</script>
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>

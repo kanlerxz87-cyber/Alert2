@@ -970,6 +970,146 @@ node server.mjs                  # optional persistence backend (feed log + SSE)
       RR-05 is answered by R2-3.
     </p>
 
+    <h2>15. Copied site — deployment and parity check (2026-11-25)</h2>
+    <p style="color:var(--muted);font-size:13px">
+      This repository is a copy of the working public site <code>snapquast73-boop/LIVPBP</code> at
+      commit <code>5c02527d3c7a56ea66c698cfabff80a407b6dfd3</code>. The rows below record what was
+      independently re-checked for this copy; every row carries its first-party source. Items left
+      unverified by the upstream review (§1–§14) are inherited unchanged and remain non-blocking.
+    </p>
+    <table class="verify">
+      <thead>
+        <tr><th>#</th><th>Item</th><th>What the sources say</th><th>What this site does</th><th>Source</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>C-1</td>
+          <td class="wrap">Copy provenance: all pages, assets, tests, docs and workflows come from one first-party revision.</td>
+          <td class="wrap">The GitHub API tree for <code>snapquast73-boop/LIVPBP</code> lists the exact files copied; HEAD of <code>main</code> is <code>5c02527d3c7a56ea66c698cfabff80a407b6dfd3</code>.</td>
+          <td class="wrap">Copied that tree verbatim; only owner/site strings and this review record were changed. No game values were hand-entered.</td>
+          <td class="wrap"><a href="https://api.github.com/repos/snapquast73-boop/LIVPBP/git/trees/5c02527d3c7a56ea66c698cfabff80a407b6dfd3?recursive=1" target="_blank" rel="noopener">GitHub API tree @ 5c02527</a> · <a href="https://github.com/snapquast73-boop/LIVPBP/commit/5c02527d3c7a56ea66c698cfabff80a407b6dfd3" target="_blank" rel="noopener">source commit</a></td>
+          <td class="status-ok">Verified</td>
+        </tr>
+        <tr>
+          <td>C-2</td>
+          <td class="wrap">The reference page's three entries for 2026-08-26 are official review events, not invented rows.</td>
+          <td class="wrap">MLB's play-by-play reports <code>MF</code> challenge at at-bat 36 of game 823096 (Mariners challenged, play at 1st, upheld), <code>MA</code> at 57 and <code>NF</code> at 84 of game 823180 with the same descriptions the reference page shows. The official schedule reports 15 games, PHI 6–SEA 0 and CIN 10–SF 9.</td>
+          <td class="wrap">Copied feed reads those same official endpoints at run time and links each row to the exact game's play-by-play.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/game/823096/playByPlay" target="_blank" rel="noopener">823096 playByPlay</a> · <a href="https://statsapi.mlb.com/api/v1/game/823180/playByPlay" target="_blank" rel="noopener">823180 playByPlay</a> · <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2026-08-26" target="_blank" rel="noopener">official 2026-08-26 schedule</a></td>
+          <td class="status-ok">Verified 2026-11-25</td>
+        </tr>
+        <tr>
+          <td>C-3</td>
+          <td class="wrap">Before-review scores on those entries are not published retroactively by the API.</td>
+          <td class="wrap">The official play-by-play contains the ruling and final score but no observed pre-ruling score snapshot for these plays.</td>
+          <td class="wrap">The feed leaves Before review blank as “— (not observed before ruling)” and flags the entry; no value is inferred.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/game/823180/playByPlay" target="_blank" rel="noopener">823180 playByPlay</a> · <a href="https://snapquast73-boop.github.io/LIVPBP/reviews.html?date=2026-08-26" target="_blank" rel="noopener">reference page</a></td>
+          <td class="status-unverified">Intentionally blank — needs review</td>
+        </tr>
+        <tr>
+          <td>C-4</td>
+          <td class="wrap">Deployment-specific project prefix (<code>/Alert2/</code>) must not break relative links or the 404 page.</td>
+          <td class="wrap">GitHub Pages serves a project site at <code>/&lt;repo&gt;/</code>; all site links are relative and the 404 page resolves its base from the URL path.</td>
+          <td class="wrap">Updated only the 404 base path, <code>package.json</code> homepage, README demo link and two test-harness URLs; local link/contract/render suites pass.</td>
+          <td class="wrap"><a href="https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site" target="_blank" rel="noopener">GitHub Pages publishing docs</a> · <a href="https://api.github.com/repos/kanlerxz87-cyber/Alert2/pages" target="_blank" rel="noopener">this repo's Pages config</a></td>
+          <td class="status-ok">Verified locally; live check recorded in COORDINATION.md</td>
+        </tr>
+        <tr>
+          <td>C-5</td>
+          <td class="wrap">Upstream irregularities (sound wording, counter presentation, before/after score observability, props provenance) remain open.</td>
+          <td class="wrap">The upstream review page and audit files mark these items flagged/unverified; no official source publishes the lost original wording or historical pre-ruling snapshots.</td>
+          <td class="wrap">Inherited unchanged by the copy and published here (§1–§14) with their original first-party links; they do not block deployment.</td>
+          <td class="wrap"><a href="https://snapquast73-boop.github.io/LIVPBP/flagged.html" target="_blank" rel="noopener">upstream Flagged for Review page</a> · <a href="https://github.com/snapquast73-boop/LIVPBP/blob/5c02527d3c7a56ea66c698cfabff80a407b6dfd3/audit/reference-parity-2026-11-22.md" target="_blank" rel="noopener">upstream parity audit</a></td>
+          <td class="status-flag">Flagged — inherited, needs review</td>
+        </tr>
+        <tr>
+          <td>C-6</td>
+          <td class="wrap">The inherited “Published Pages delivery” byte-comparison workflow ran on the pull request and failed.</td>
+          <td class="wrap">A PR has no published Pages revision; the workflow selected the last published <code>main</code> revision and compared it with the PR checkout. GitHub docs describe Pages publishing from a branch after merge.</td>
+          <td class="wrap">Removed the <code>pull_request</code> trigger; the check now runs after a real Pages build on <code>main</code> (or on manual dispatch) and compares the built revision. Site content is unaffected.</td>
+          <td class="wrap"><a href="https://github.com/kanlerxz87-cyber/Alert2/actions/runs/45697521110" target="_blank" rel="noopener">failed PR run</a> · <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site" target="_blank" rel="noopener">GitHub Pages docs</a></td>
+          <td class="status-ok">Fixed — re-checked on merge</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="color:var(--muted);font-size:13px">
+      Checks for this copy: <code>npm test</code> → 64 passed · <code>node tests/run-all.mjs</code> → syntax,
+      41 local links, 8 DOM bindings and 47/47 jsdom checks passed ·
+      <code>node tools/restoration-check.mjs</code> → ALL CHECKS PASSED ·
+      <code>node tests/props-provenance-test.mjs</code> → 5 passed. All 106 data rows in §1–§14 and
+      all 5 rows in §15 carry external source links.
+    </p>
+
+    <h2>16. Independent Line-by-Line Audit, Upcoming Game-Day &amp; API Irregularity Findings (2026-11-25, session <code>cd142cd9</code>)</h2>
+    <p style="color:var(--muted);font-size:13px">
+      Independent verification pass on top of <code>main</code> (<code>db38749</code>, preserving 100% of
+      session <code>a95710a6</code>'s §15 copy &amp; Pages integration work). Every row below was checked
+      directly against the official MLB StatsAPI and GitHub API on <strong>2026-11-25</strong>; any value
+      that cannot be confirmed by an official source is left blank and flagged as unverified.
+    </p>
+    <table class="flag-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Area / Subject</th>
+          <th>Official Verified Value</th>
+          <th>Observed / Action Taken in <code>Alert2</code></th>
+          <th>Official Source</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A2-V04</td>
+          <td class="wrap">Official MLB registries (<code>teams</code>, <code>gameStatus</code>, <code>eventTypes</code>)</td>
+          <td class="wrap">30 MLB clubs (incl. ID <code>133</code> Athletics <code>ATH</code>), review status codes <code>IH</code> / <code>M*</code> / <code>N*</code>, and pending-ruling event types <code>os_ruling_pending_primary</code> &amp; <code>os_ruling_pending_prior</code> confirmed live on 2026-11-25.</td>
+          <td class="wrap"><code>assets/js/reviews.js</code> and <code>assets/js/api.js</code> read these registries dynamically at runtime without hardcoding unverified values.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/teams?sportId=1" target="_blank" rel="noopener">MLB teams</a> · <a href="https://statsapi.mlb.com/api/v1/gameStatus" target="_blank" rel="noopener">MLB gameStatus</a> · <a href="https://statsapi.mlb.com/api/v1/eventTypes" target="_blank" rel="noopener">MLB eventTypes</a></td>
+          <td class="status-ok">Verified</td>
+        </tr>
+        <tr>
+          <td>A2-V05</td>
+          <td class="wrap">Upcoming game days (2027 Spring Training &amp; Opening Day)</td>
+          <td class="wrap">628 upcoming MLB games scheduled <code>2026-11-25</code>–<code>2027-04-05</code>: first game day is <code>2027-02-19</code> (17 Spring Training games, e.g. <code>gamePk=868573</code> TOR @ PIT, <code>abstractGameState: "Preview"</code>, <code>statusCode: "S"</code>); regular season opens <code>2027-03-24</code> (1 game) / <code>2027-03-25</code> (14 games).</td>
+          <td class="wrap">Added §[14] smoke tests in <code>tools/smoke-test.mjs</code> verifying upcoming <code>Preview</code> rendering on <code>index.html?date=2027-02-19</code> and <code>reviews.html?date=2027-02-19</code> plus <code>404.html</code> project-root <code>&lt;base&gt;</code> resolution to <code>/Alert2/</code> (<code>npm test</code> → 67/67 passed).</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2027-02-19&amp;hydrate=probablePitcher,linescore,decisions,review" target="_blank" rel="noopener">schedule 2027-02-19</a> · <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;startDate=2026-11-25&amp;endDate=2027-04-05&amp;fields=dates,date,totalGames" target="_blank" rel="noopener">upcoming range</a></td>
+          <td class="status-ok">Verified</td>
+        </tr>
+        <tr>
+          <td>A2-F03</td>
+          <td class="wrap">Official API data irregularity: <code>game/823180</code> play 84 (<code>2026-08-26</code>) prose vs structured <code>reviewDetails</code></td>
+          <td class="wrap"><code>result.description</code> describes two umpire reviews (“play at 1st” and “slide interference”), while structured <code>reviewDetails</code> holds only one code: <code>{"reviewType":"NF","isOverturned":false,"inProgress":false}</code>.</td>
+          <td class="wrap">The site faithfully displays the single structured <code>NF</code> review and preserves MLB's complete official prose verbatim; it does not fabricate a second structured review record.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/game/823180/playByPlay" target="_blank" rel="noopener">MLB 823180 playByPlay (atBatIndex 84)</a></td>
+          <td class="status-flag">Flagged — upstream API shape</td>
+        </tr>
+        <tr>
+          <td>A2-F04</td>
+          <td class="wrap">Offseason live-polling observation limit (<code>2026-11-25</code>)</td>
+          <td class="wrap"><code>totalGames: 0</code> on <code>2026-11-25</code>; next MLB game day is <code>2027-02-19</code>.</td>
+          <td class="wrap">Live <code>Preview</code> → <code>Live</code> state transitions cannot be observed against live MLB servers until <code>2027-02-19</code>; covered locally by fixture/smoke tests (§[2]–§[5], §[14]).</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2026-11-25" target="_blank" rel="noopener">schedule 2026-11-25</a> · <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2027-02-19" target="_blank" rel="noopener">schedule 2027-02-19</a></td>
+          <td class="status-flag">Flagged — offseason observation limit</td>
+        </tr>
+        <tr>
+          <td>A2-F06</td>
+          <td class="wrap">Parallel-session integration &amp; fixed branch naming (<code>cd142cd9</code> + <code>a95710a6</code>)</td>
+          <td class="wrap"></td>
+          <td class="wrap">Both sessions ran on Arena-fixed branches (<code>arena/a95710a6-alert2</code> and <code>arena/cd142cd9-alert2</code> rather than <code>session-&lt;id&gt;/&lt;task&gt;</code>). When <code>a95710a6</code> merged PR #1 &amp; PR #2 into <code>main</code> (<code>db38749</code>), session <code>cd142cd9</code> rebased cleanly onto <code>origin/main</code>, kept 100% of <code>a95710a6</code>'s work, and merged only strictly additive fixes/tests.</td>
+          <td class="wrap"><a href="https://github.com/kanlerxz87-cyber/Alert2/pull/1" target="_blank" rel="noopener">PR #1</a> · <a href="https://github.com/kanlerxz87-cyber/Alert2/pull/2" target="_blank" rel="noopener">PR #2</a> · <a href="https://github.com/kanlerxz87-cyber/Alert2/branches" target="_blank" rel="noopener">Alert2 branches</a></td>
+          <td class="status-ok">Resolved — zero work discarded</td>
+        </tr>
+        <tr>
+          <td>A2-F07</td>
+          <td class="wrap">Remaining upstream <code>LIVPBP</code> links in test docs/comments</td>
+          <td class="wrap"><code>tests/README.md</code> and <code>tests/link-check.mjs</code> still referenced <code>snapquast73-boop/LIVPBP</code> / <code>/LIVPBP/</code> after the initial copy.</td>
+          <td class="wrap">Updated to <code>kanlerxz87-cyber/Alert2</code> and <code>/Alert2/</code> so all active code, config, and test documentation matches this repository.</td>
+          <td class="wrap"><a href="https://github.com/kanlerxz87-cyber/Alert2/blob/main/tests/README.md" target="_blank" rel="noopener">Alert2 tests/README.md</a> · <a href="https://github.com/kanlerxz87-cyber/Alert2/blob/main/tests/link-check.mjs" target="_blank" rel="noopener">Alert2 tests/link-check.mjs</a></td>
+          <td class="status-ok">Fixed</td>
+        </tr>
+      </tbody>
+    </table>
+
   </main>
 
   <footer class="site-footer">

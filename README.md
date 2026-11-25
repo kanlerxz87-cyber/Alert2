@@ -1,5 +1,8 @@
 # ⚾ MLB Live PBP — Live MLB Scoreboard & Play-by-Play
 
+> ### 📋 **COPY NOTE (2026-11-25)** 📋
+> This repository is a verbatim copy of the working public site [`snapquast73-boop/LIVPBP`](https://github.com/snapquast73-boop/LIVPBP) at commit [`5c02527d3c7a56ea66c698cfabff80a407b6dfd3`](https://github.com/snapquast73-boop/LIVPBP/commit/5c02527d3c7a56ea66c698cfabff80a407b6dfd3), the code behind the reference [`/reviews.html?date=2026-08-26`](https://snapquast73-boop.github.io/LIVPBP/reviews.html?date=2026-08-26). The only intentional changes are deployment-specific strings (this repo's Pages URL / project prefix in `package.json`, `404.html`, `README.md` and test harness URLs) plus a session record in `COORDINATION.md`. No game data is stored or hand-entered: all scores, play-by-play and review events are fetched at page load from the official [MLB StatsAPI](https://statsapi.mlb.com/), so any selected game date works without manual input. Verification history and both source- and copy-specific irregularities are on the [⚑ Flagged for Review](flagged.html) page and in [`COORDINATION.md`](COORDINATION.md).
+
 > ### ♻️ **RESTORATION NOTE (2026-11-20)** ♻️
 > This repository was uploaded incomplete: the three HTML pages referenced a stylesheet and nine
 > scripts under `assets/` that were **not** part of the upload, so GitHub Pages served an unstyled,
@@ -165,8 +168,7 @@ mlb.com uses, re-implemented from scratch in vanilla HTML/CSS/JS.
   host, or even `file://`).
 
 > **Live demo:** [kanlerxz87-cyber.github.io/Alert2](https://kanlerxz87-cyber.github.io/Alert2/)
-> (Copy of [snapquast73-boop/LIVPBP](https://github.com/snapquast73-boop/LIVPBP), restored
-> 2026-11-20: the original author's repo linked previously is
+> (Restored 2026-11-20: the original author's repo linked here previously is
 > no longer on GitHub — see `flagged.html` items F-002/F-008 and
 > `COORDINATION.md` for the restoration log and flagged irregularities.)
 

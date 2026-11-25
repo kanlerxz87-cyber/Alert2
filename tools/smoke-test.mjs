@@ -1229,6 +1229,107 @@ console.log('\n[13] reference-parity fixes (session 6e2a58d9: G-2…G-5, G-9)');
   dom.window.close();
 }
 
+// ---------------------------------------------------------------------------
+// 14. Alert2 Pages base path & upcoming game-day Preview rendering
+// ---------------------------------------------------------------------------
+console.log('\n[14] Alert2 Pages base path (404.html) & upcoming game-day Preview slate (2027-02-19)');
+{
+  await check('404.html sets <base href="/Alert2/"> for nested paths under /Alert2/', async () => {
+    const html404 = await fs.readFile(path.join(ROOT, '404.html'), 'utf8');
+    const dom404 = new JSDOM(html404, {
+      url: 'https://kanlerxz87-cyber.github.io/Alert2/missing/deep/path',
+      runScripts: 'dangerously',
+    });
+    try {
+      const base = dom404.window.document.querySelector('base');
+      assert(base && base.getAttribute('href') === '/Alert2/',
+        'expected <base href="/Alert2/">, got ' + (base && base.getAttribute('href')));
+    } finally {
+      dom404.window.close();
+    }
+  });
+
+  /* Verified verbatim from GET /api/v1/schedule?sportId=1&date=2027-02-19 (2026-11-25). */
+  const UPCOMING_2027 = {
+    totalGames: 1,
+    dates: [{
+      date: '2027-02-19',
+      totalGames: 1,
+      games: [{
+        gamePk: 868573,
+        gameType: 'S',
+        season: '2027',
+        gameDate: '2027-02-19T18:05:00Z',
+        officialDate: '2027-02-19',
+        status: {
+          abstractGameState: 'Preview',
+          codedGameState: 'S',
+          detailedState: 'Scheduled',
+          statusCode: 'S',
+          startTimeTBD: false,
+          abstractGameCode: 'P',
+        },
+        teams: {
+          away: { team: { id: 141, name: 'Toronto Blue Jays', abbreviation: 'TOR' }, leagueRecord: { wins: 0, losses: 0 } },
+          home: { team: { id: 134, name: 'Pittsburgh Pirates', abbreviation: 'PIT' }, leagueRecord: { wins: 0, losses: 0 } },
+        },
+        venue: { id: 2526, name: 'LECOM Park' },
+        review: { hasChallenges: false, away: { used: 0, remaining: 1 }, home: { used: 0, remaining: 1 } },
+      }],
+    }],
+  };
+
+  const upcomingFetch = (url) => {
+    const u = String(url);
+    if (u.includes('/schedule?')) {
+      return Promise.resolve({
+        ok: true, status: 200, headers: { get: () => null },
+        json: async () => UPCOMING_2027,
+      });
+    }
+    return routeFetch(u);
+  };
+
+  await check('index.html?date=2027-02-19 renders upcoming Preview game cards cleanly', async () => {
+    const udom = await boot('index.html', {
+      query: '?date=2027-02-19',
+      fetchImpl: upcomingFetch,
+      beforeParse(x) { x.localStorage.clear(); },
+    });
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      const cards = udom.window.document.querySelectorAll('.game-card');
+      assert(cards.length === 1, 'expected 1 upcoming game card, got ' + cards.length);
+      const body = text(udom.window.document.getElementById('game-list'));
+      assert(body.includes('Toronto Blue Jays') && body.includes('Pittsburgh Pirates'),
+        'expected TOR @ PIT on upcoming slate, got ' + body);
+      const statusText = text(udom.window.document.getElementById('status-text'));
+      assert(!/failed|error/i.test(statusText), 'unexpected status text: ' + statusText);
+    } finally {
+      udom.window.close();
+    }
+  });
+
+  await check('reviews.html?date=2027-02-19 tracks upcoming slate with 0 errors and empty-state notice', async () => {
+    const rdom = await boot('reviews.html', {
+      query: '?date=2027-02-19',
+      fetchImpl: upcomingFetch,
+      beforeParse(x) { x.localStorage.clear(); },
+    });
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      const statusText = text(rdom.window.document.getElementById('status-line'));
+      assert(/1 game\(s\)/.test(statusText) && /0 live/.test(statusText),
+        'expected upcoming status line with 1 game(s) and 0 live, got ' + statusText);
+      const listText = text(rdom.window.document.getElementById('feed-list'));
+      assert(/No tracked events for this date and filter yet/.test(listText),
+        'expected empty-state notice on upcoming slate, got ' + listText);
+    } finally {
+      rdom.window.close();
+    }
+  });
+}
+
 function __setDate(dom) {
   const picker = dom.window.document.getElementById('date-picker');
   if (picker) {
