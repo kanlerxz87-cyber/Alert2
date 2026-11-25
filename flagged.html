@@ -970,6 +970,68 @@ node server.mjs                  # optional persistence backend (feed log + SSE)
       RR-05 is answered by R2-3.
     </p>
 
+    <h2>15. Copied site — deployment and parity check (2026-11-25)</h2>
+    <p style="color:var(--muted);font-size:13px">
+      This repository is a copy of the working public site <code>snapquast73-boop/LIVPBP</code> at
+      commit <code>5c02527d3c7a56ea66c698cfabff80a407b6dfd3</code>. The rows below record what was
+      independently re-checked for this copy; every row carries its first-party source. Items left
+      unverified by the upstream review (§1–§14) are inherited unchanged and remain non-blocking.
+    </p>
+    <table class="verify">
+      <thead>
+        <tr><th>#</th><th>Item</th><th>What the sources say</th><th>What this site does</th><th>Source</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>C-1</td>
+          <td class="wrap">Copy provenance: all pages, assets, tests, docs and workflows come from one first-party revision.</td>
+          <td class="wrap">The GitHub API tree for <code>snapquast73-boop/LIVPBP</code> lists the exact files copied; HEAD of <code>main</code> is <code>5c02527d3c7a56ea66c698cfabff80a407b6dfd3</code>.</td>
+          <td class="wrap">Copied that tree verbatim; only owner/site strings and this review record were changed. No game values were hand-entered.</td>
+          <td class="wrap"><a href="https://api.github.com/repos/snapquast73-boop/LIVPBP/git/trees/5c02527d3c7a56ea66c698cfabff80a407b6dfd3?recursive=1" target="_blank" rel="noopener">GitHub API tree @ 5c02527</a> · <a href="https://github.com/snapquast73-boop/LIVPBP/commit/5c02527d3c7a56ea66c698cfabff80a407b6dfd3" target="_blank" rel="noopener">source commit</a></td>
+          <td class="status-ok">Verified</td>
+        </tr>
+        <tr>
+          <td>C-2</td>
+          <td class="wrap">The reference page's three entries for 2026-08-26 are official review events, not invented rows.</td>
+          <td class="wrap">MLB's play-by-play reports <code>MF</code> challenge at at-bat 36 of game 823096 (Mariners challenged, play at 1st, upheld), <code>MA</code> at 57 and <code>NF</code> at 84 of game 823180 with the same descriptions the reference page shows. The official schedule reports 15 games, PHI 6–SEA 0 and CIN 10–SF 9.</td>
+          <td class="wrap">Copied feed reads those same official endpoints at run time and links each row to the exact game's play-by-play.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/game/823096/playByPlay" target="_blank" rel="noopener">823096 playByPlay</a> · <a href="https://statsapi.mlb.com/api/v1/game/823180/playByPlay" target="_blank" rel="noopener">823180 playByPlay</a> · <a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2026-08-26" target="_blank" rel="noopener">official 2026-08-26 schedule</a></td>
+          <td class="status-ok">Verified 2026-11-25</td>
+        </tr>
+        <tr>
+          <td>C-3</td>
+          <td class="wrap">Before-review scores on those entries are not published retroactively by the API.</td>
+          <td class="wrap">The official play-by-play contains the ruling and final score but no observed pre-ruling score snapshot for these plays.</td>
+          <td class="wrap">The feed leaves Before review blank as “— (not observed before ruling)” and flags the entry; no value is inferred.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/game/823180/playByPlay" target="_blank" rel="noopener">823180 playByPlay</a> · <a href="https://snapquast73-boop.github.io/LIVPBP/reviews.html?date=2026-08-26" target="_blank" rel="noopener">reference page</a></td>
+          <td class="status-unverified">Intentionally blank — needs review</td>
+        </tr>
+        <tr>
+          <td>C-4</td>
+          <td class="wrap">Deployment-specific project prefix (<code>/Alert2/</code>) must not break relative links or the 404 page.</td>
+          <td class="wrap">GitHub Pages serves a project site at <code>/&lt;repo&gt;/</code>; all site links are relative and the 404 page resolves its base from the URL path.</td>
+          <td class="wrap">Updated only the 404 base path, <code>package.json</code> homepage, README demo link and two test-harness URLs; local link/contract/render suites pass.</td>
+          <td class="wrap"><a href="https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site" target="_blank" rel="noopener">GitHub Pages publishing docs</a> · <a href="https://api.github.com/repos/kanlerxz87-cyber/Alert2/pages" target="_blank" rel="noopener">this repo's Pages config</a></td>
+          <td class="status-ok">Verified locally; live check recorded in COORDINATION.md</td>
+        </tr>
+        <tr>
+          <td>C-5</td>
+          <td class="wrap">Upstream irregularities (sound wording, counter presentation, before/after score observability, props provenance) remain open.</td>
+          <td class="wrap">The upstream review page and audit files mark these items flagged/unverified; no official source publishes the lost original wording or historical pre-ruling snapshots.</td>
+          <td class="wrap">Inherited unchanged by the copy and published here (§1–§14) with their original first-party links; they do not block deployment.</td>
+          <td class="wrap"><a href="https://snapquast73-boop.github.io/LIVPBP/flagged.html" target="_blank" rel="noopener">upstream Flagged for Review page</a> · <a href="https://github.com/snapquast73-boop/LIVPBP/blob/5c02527d3c7a56ea66c698cfabff80a407b6dfd3/audit/reference-parity-2026-11-22.md" target="_blank" rel="noopener">upstream parity audit</a></td>
+          <td class="status-flag">Flagged — inherited, needs review</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="color:var(--muted);font-size:13px">
+      Checks for this copy: <code>npm test</code> → 64 passed · <code>node tests/run-all.mjs</code> → syntax,
+      41 local links, 8 DOM bindings and 47/47 jsdom checks passed ·
+      <code>node tools/restoration-check.mjs</code> → ALL CHECKS PASSED ·
+      <code>node tests/props-provenance-test.mjs</code> → 5 passed. All 106 data rows in §1–§14 and
+      all 5 rows in §15 carry external source links.
+    </p>
+
   </main>
 
   <footer class="site-footer">
