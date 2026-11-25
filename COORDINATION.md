@@ -728,7 +728,7 @@ same thing, and its PR #24 merged after PR #23. Nothing was lost and nothing was
 
 All prior tasks on this board remain at their recorded statuses; this session does **not** alter earlier sessions' entries or their file history. Unverified items already published on [`flagged.html`](flagged.html) stay flagged and do not block integration.
 
-### CI correction (`2026-11-25T20:45Z`, task C-6)
+### CI correction (`2026-11-25T20:43Z`, task C-6)
 
 The PR's `Site checks` (`test`, `dom-smoke`) passed. The `Published Pages delivery` check failed on the PR because [its run](https://github.com/kanlerxz87-cyber/Alert2/actions/runs/45697521110) selected the last published `main` revision (the original one-file commit) and byte-compared it with this branch — a PR has no published Pages revision of its own. Fixed in `.github/workflows/pages-delivery.yml`: removed the `pull_request` trigger; the delivery byte-comparison now runs only on `workflow_run` after a real Pages build on `main`, or via `workflow_dispatch`. This is a CI-only correction; no site content was changed. Recorded on `flagged.html` §15 as C-6.
 
