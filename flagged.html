@@ -1022,6 +1022,14 @@ node server.mjs                  # optional persistence backend (feed log + SSE)
           <td class="wrap"><a href="https://snapquast73-boop.github.io/LIVPBP/flagged.html" target="_blank" rel="noopener">upstream Flagged for Review page</a> · <a href="https://github.com/snapquast73-boop/LIVPBP/blob/5c02527d3c7a56ea66c698cfabff80a407b6dfd3/audit/reference-parity-2026-11-22.md" target="_blank" rel="noopener">upstream parity audit</a></td>
           <td class="status-flag">Flagged — inherited, needs review</td>
         </tr>
+        <tr>
+          <td>C-6</td>
+          <td class="wrap">The inherited “Published Pages delivery” byte-comparison workflow ran on the pull request and failed.</td>
+          <td class="wrap">A PR has no published Pages revision; the workflow selected the last published <code>main</code> revision and compared it with the PR checkout. GitHub docs describe Pages publishing from a branch after merge.</td>
+          <td class="wrap">Removed the <code>pull_request</code> trigger; the check now runs after a real Pages build on <code>main</code> (or on manual dispatch) and compares the built revision. Site content is unaffected.</td>
+          <td class="wrap"><a href="https://github.com/kanlerxz87-cyber/Alert2/actions/runs/45697521110" target="_blank" rel="noopener">failed PR run</a> · <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site" target="_blank" rel="noopener">GitHub Pages docs</a></td>
+          <td class="status-ok">Fixed — re-checked on merge</td>
+        </tr>
       </tbody>
     </table>
     <p style="color:var(--muted);font-size:13px">
