@@ -885,3 +885,9 @@ diff -r vs fresh clone of snapquast73-boop/LIVPBP @ 5c02527 -> identical except 
 - **Local suites post-merge:** `restoration-check` ALL PASS · `run-all` PASS (41 links, 8 bindings, 47/47 jsdom) · `npm test` **67/67** · `props-provenance` 5/5.
 - **Sources:** all official links in the verification tables above; reference page linked at the top of this session's section.
 - **Flagged:** IR-1 (cache artefact, informational), IR-3 (inherited upstream items, carried over), IR-4 (sandbox fetch note) — non-blocking, published on [`flagged.html`](flagged.html) + this board.
+
+## Task board (`arena/42012815-alert2`) — independent copy/runtime verification (2026-11-25)
+
+| Task | Status | Session | File scope | Notes |
+|---|---|---|---|---|
+| A420-1 Confirm copied tree, official-source provenance, and live behavior for the reference date and an upcoming slate | in progress | `arena/42012815-alert2` | `audit/verification-2026-11-25.md`, `COORDINATION.md` | Read-only audit; no app/source changes planned unless a verifiable defect is found. |
