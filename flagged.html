@@ -1100,6 +1100,14 @@ node server.mjs                  # optional persistence backend (feed log + SSE)
           <td class="status-ok">Resolved — zero work discarded</td>
         </tr>
         <tr>
+          <td>A420-F1</td>
+          <td class="wrap">Official schedule start times marked TBD (2027-03-25; gamePks <code>854131</code>, <code>852663</code>, <code>853388</code>)</td>
+          <td class="wrap">MLB schedule sets <code>status.startTimeTBD: true</code> for CLE @ CHC, COL @ SF, and ATL @ LAD. The accompanying <code>gameDate</code> values are not confirmed start times.</td>
+          <td class="wrap">Previously the scoreboard and game page formatted those raw timestamps as clock times. Fixed: both now render <code>TBD</code> whenever the official upcoming-game flag is true. Regression tests cover scoreboard, game header, metadata, and pregame text. See <a href="audit/verification-2026-11-25.md">independent verification report</a>.</td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1/schedule?sportId=1&amp;date=2027-03-25&amp;fields=dates,date,totalGames,games,gamePk,gameDate,officialDate,status,abstractGameState,codedGameState,detailedState,statusCode,startTimeTBD,abstractGameCode,teams,away,home,team,id,name,venue&amp;hydrate=review" target="_blank" rel="noopener">official 2027-03-25 schedule</a> · <a href="https://statsapi.mlb.com/api/v1.1/game/854131/feed/live?fields=gameData,datetime,dateTime,officialDate,status,startTimeTBD,gamePk" target="_blank" rel="noopener">official game 854131 feed</a></td>
+          <td class="status-ok">Fixed · start time remains unverified/TBD</td>
+        </tr>
+        <tr>
           <td>A2-F07</td>
           <td class="wrap">Remaining upstream <code>LIVPBP</code> links in test docs/comments</td>
           <td class="wrap"><code>tests/README.md</code> and <code>tests/link-check.mjs</code> still referenced <code>snapquast73-boop/LIVPBP</code> / <code>/LIVPBP/</code> after the initial copy.</td>

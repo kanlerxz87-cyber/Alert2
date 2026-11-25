@@ -890,4 +890,4 @@ diff -r vs fresh clone of snapquast73-boop/LIVPBP @ 5c02527 -> identical except 
 
 | Task | Status | Session | File scope | Notes |
 |---|---|---|---|---|
-| A420-1 Confirm copied tree, official-source provenance, and live behavior for the reference date and an upcoming slate | in progress | `arena/42012815-alert2` | `audit/verification-2026-11-25.md`, `COORDINATION.md` | Read-only audit; no app/source changes planned unless a verifiable defect is found. |
+| A420-1 Confirm copied tree, official-source provenance, and live behavior for the reference date and an upcoming slate | done | `arena/42012815-alert2` | `audit/verification-2026-11-25.md`, `COORDINATION.md`, `flagged.html`, `assets/js/scoreboard.js`, `assets/js/game.js`, `tools/smoke-test.mjs` | Fresh archive comparison against upstream `5c02527`; deployed 2026-08-26 parity confirmed; official current and 2027-03-25 schedules checked. A420-F1 fixed: `startTimeTBD` games display TBD, not the `gameDate` placeholder; posted on Flagged for Review with official links. `npm test` 69/69. |

@@ -1310,6 +1310,64 @@ console.log('\n[14] Alert2 Pages base path (404.html) & upcoming game-day Previe
     }
   });
 
+  const UPCOMING_TBD = structuredClone(UPCOMING_2027);
+  UPCOMING_TBD.dates[0].games[0].gameDate = '2027-03-25T08:33:00Z';
+  UPCOMING_TBD.dates[0].games[0].status.startTimeTBD = true;
+  const tbdScheduleFetch = (url) => {
+    const u = String(url);
+    if (u.includes('/schedule?')) {
+      return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, json: async () => UPCOMING_TBD });
+    }
+    return routeFetch(u);
+  };
+
+  await check('scoreboard shows TBD instead of an unconfirmed API placeholder time', async () => {
+    const tdom = await boot('index.html', {
+      query: '?date=2027-03-25',
+      fetchImpl: tbdScheduleFetch,
+      beforeParse(x) { x.localStorage.clear(); },
+    });
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      const card = tdom.window.document.querySelector('.game-card');
+      const cardTime = card && card.querySelectorAll('.card-top span')[1];
+      assert(cardTime && text(cardTime) === 'TBD', 'expected official startTimeTBD=true to render TBD, got ' + text(cardTime));
+      assert(text(card.querySelector('.card-meta')).includes('TBD'), 'expected card metadata to say TBD');
+    } finally {
+      tdom.window.close();
+    }
+  });
+
+  await check('game page shows TBD for an official startTimeTBD flag', async () => {
+    const tbdFeed = structuredClone(FEED_823109);
+    tbdFeed.gameData.game.pk = 854131;
+    tbdFeed.gameData.status = {
+      abstractGameState: 'Preview', codedGameState: 'S', detailedState: 'Scheduled',
+      statusCode: 'S', startTimeTBD: true,
+    };
+    tbdFeed.gameData.datetime = { dateTime: '2027-03-25T08:33:00Z', officialDate: '2027-03-25' };
+    const tbdGameFetch = (url) => {
+      if (String(url).includes('/feed/live')) {
+        return Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, json: async () => tbdFeed });
+      }
+      return routeFetch(url);
+    };
+    const gdom = await boot('game.html', {
+      query: '?gamePk=854131&date=2027-03-25',
+      fetchImpl: tbdGameFetch,
+      beforeParse(x) { x.localStorage.clear(); },
+    });
+    try {
+      const headerTime = gdom.window.document.querySelector('#header-center .status-sub');
+      const pregame = gdom.window.document.getElementById('live-panel');
+      assert(headerTime && text(headerTime) === 'TBD', 'expected header time TBD, got ' + text(headerTime));
+      assert(text(pregame).includes('first pitch TBD'), 'expected pregame message to say first pitch TBD');
+      assert(text(gdom.window.document.getElementById('header-meta')).includes('TBD'), 'expected metadata to say TBD');
+    } finally {
+      gdom.window.close();
+    }
+  });
+
   await check('reviews.html?date=2027-02-19 tracks upcoming slate with 0 errors and empty-state notice', async () => {
     const rdom = await boot('reviews.html', {
       query: '?date=2027-02-19',
