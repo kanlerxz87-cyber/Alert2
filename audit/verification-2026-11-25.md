@@ -43,7 +43,7 @@ The official schedule returns `status.startTimeTBD: true` for three 2027-03-25 g
 - Independent game-feed confirmation for game 854131: [official feed status and datetime](https://statsapi.mlb.com/api/v1.1/game/854131/feed/live?fields=gameData,datetime,dateTime,officialDate,status,startTimeTBD,gamePk) returns `startTimeTBD: true` alongside `2027-03-25T08:33:00Z`.
 - Fix: `assets/js/scoreboard.js` and `assets/js/game.js` now render `TBD` when an upcoming game's official status has `startTimeTBD === true`; no clock is inferred from `gameDate` in this state.
 - Regression tests: `tools/smoke-test.mjs` covers the scoreboard card time, game header, game metadata, and pregame first-pitch line for a `startTimeTBD` payload.
-- Status: **Fixed and verified locally.** The already-deployed live site was observed before this patch and still showed placeholder clocks; the corrected rendering will appear once this branch is merged and Pages deploys.
+- Status: **Fixed, merged, and verified live.** After merge, the deployed scoreboard displays `TBD` for all three official TBD games, and the deployed detail page for game 854131 shows `TBD` in the status, metadata, and pregame first-pitch text. The Pages build and published-delivery check both passed.
 
 ## 5. Verification commands
 
