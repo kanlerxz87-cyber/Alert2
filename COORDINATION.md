@@ -760,7 +760,7 @@ The PR's `Site checks` (`test`, `dom-smoke`) passed. The `Published Pages delive
 | `A2-A2` Clean remaining upstream `/LIVPBP/` links in `tests/README.md` & `tests/link-check.mjs` | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | `tests/README.md`, `tests/link-check.mjs` | [Alert2 GitHub](https://github.com/kanlerxz87-cyber/Alert2) |
 | `A2-A3` Add §[14] smoke tests in `tools/smoke-test.mjs` for `404.html` `<base href="/Alert2/">` and upcoming `2027-02-19` `Preview` slate (`index.html` & `reviews.html`) | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | `tools/smoke-test.mjs` | [MLB `schedule` `2027-02-19`](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2027-02-19&hydrate=probablePitcher,linescore,decisions,review) |
 | `A2-A4` Append `flagged.html` §16 (incl. newly surfaced `A2-F03` game `823180` play 84 dual-review prose vs single `NF`, `A2-F04` offseason limit, `A2-F06` parallel merge, `A2-F07` test doc cleanup) | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | `flagged.html`, `COORDINATION.md` | [MLB `game/823180/playByPlay`](https://statsapi.mlb.com/api/v1/game/823180/playByPlay) |
-| `A2-A5` Open PR `arena/cd142cd9-alert2` → `main`, confirm CI passes, merge, and verify live Pages deployment (`https://kanlerxz87-cyber.github.io/Alert2/`) | `in progress` | `cd142cd9` (`arena/cd142cd9-alert2`) | `COORDINATION.md` | [Alert2 Pages](https://kanlerxz87-cyber.github.io/Alert2/) |
+| `A2-A5` Open PR `arena/cd142cd9-alert2` → `main`, confirm CI passes, merge, and verify live Pages deployment (`https://kanlerxz87-cyber.github.io/Alert2/`) | `done` | `cd142cd9` (`arena/cd142cd9-alert2`) | `COORDINATION.md` | [PR #3](https://github.com/kanlerxz87-cyber/Alert2/pull/3) · [Alert2 Pages](https://kanlerxz87-cyber.github.io/Alert2/) |
 
 ## Local Verification (`cd142cd9`, 2026-11-25)
 
@@ -768,4 +768,18 @@ The PR's `Site checks` (`test`, `dom-smoke`) passed. The `Published Pages delive
 - `node tests/run-all.mjs`: **PASS** (`syntax` OK · `link-check` 41/41 · `contract-check` 8/8 · `jsdom-render-test` 47/47).
 - `node tools/restoration-check.mjs`: **ALL CHECKS PASSED**.
 - `node tests/props-provenance-test.mjs`: **5 passed, 0 failed**.
+
+## Final Integration & Live Verification Record (`cd142cd9`, 2026-11-25)
+
+- **PR:** [#3 — “Independent line-by-line audit, upcoming 2027 game-day tests, and Alert2 test-doc cleanup (cd142cd9)”](https://github.com/kanlerxz87-cyber/Alert2/pull/3) — **MERGED** into `main` at commit [`83f1349bca41a866712e6393addcea8e6bd558fd`](https://github.com/kanlerxz87-cyber/Alert2/commit/83f1349bca41a866712e6393addcea8e6bd558fd) without waiting for approval.
+- **CI checks before merge:** `Site checks` [run `45699088196`](https://github.com/kanlerxz87-cyber/Alert2/actions/runs/45699088196) — `test` **pass**, `dom-smoke` **pass**.
+- **CI & GitHub Pages checks after merge (`83f1349`):**
+  - `Site checks` [run `45699200535`](https://github.com/kanlerxz87-cyber/Alert2/actions/runs/45699200535): **success**.
+  - `pages build and deployment` [run `45699197308`](https://github.com/kanlerxz87-cyber/Alert2/actions/runs/45699197308): **success** ([`pages/builds/latest`](https://api.github.com/repos/kanlerxz87-cyber/Alert2/pages/builds/latest) → commit `83f1349bca41a866712e6393addcea8e6bd558fd`, `status: "built"`, `updated_at: "2026-11-25T20:53:35Z"`, `error: null`).
+  - `Published Pages delivery` [run `45699279659`](https://github.com/kanlerxz87-cyber/Alert2/actions/runs/45699279659): **success** (published HTML byte-matches the built revision including `404.html`).
+- **Live pages verified after deployment (`2026-11-25`):**
+  - [`reviews.html?date=2026-08-26`](https://kanlerxz87-cyber.github.io/Alert2/reviews.html?date=2026-08-26): renders 10 Reviews · 8 Challenges · 2 Umpire reviews · 68 ABS challenges · 1 Boundary calls · 0 Under review · 1 Runs at risk · 0 Scoring changes · 15 games · 78 tracked entries, with per-row official [MLB StatsAPI](https://statsapi.mlb.com/api/v1/game/823180/playByPlay) links.
+  - [`index.html?date=2027-02-19`](https://kanlerxz87-cyber.github.io/Alert2/index.html?date=2027-02-19): renders all 17 upcoming 2027 Spring Training games (`TOR @ PIT`, `PHI @ DET`, `ATL @ BAL`, etc.) matching the official [2027-02-19 schedule](https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2027-02-19&hydrate=probablePitcher,linescore,decisions,review).
+  - [`game.html?gamePk=823180`](https://kanlerxz87-cyber.github.io/Alert2/game.html?gamePk=823180): renders CIN 10 – SF 9 Final, linescore with per-row official StatsAPI source links, pitch-by-pitch play-by-play, and ABS/umpire-review badges.
+  - [`flagged.html`](https://kanlerxz87-cyber.github.io/Alert2/flagged.html): live with §1–§16, every table row carrying clickable official source links and blank+flagged cells for unconfirmed values.
 
