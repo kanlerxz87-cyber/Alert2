@@ -188,6 +188,10 @@
     var home = teamInfo(feed, 'home');
     var status = (feed.gameData && feed.gameData.status) || {};
     var meta = UI.statusMeta(status);
+    var dateTime = feed.gameData.datetime && feed.gameData.datetime.dateTime;
+    var scheduledTime = !meta.live && !meta.final && status.startTimeTBD === true
+      ? 'TBD'
+      : (MLB.formatGameTime(dateTime) || 'TBD');
     var ls = linescoreOf(feed) || {};
 
     function sideBlock(t) {
@@ -209,7 +213,7 @@
     } else if (meta.final) {
       centerBits.push('<div class="status-sub">Final</div>');
     } else if (status.detailedState) {
-      centerBits.push('<div class="status-sub">' + UI.esc(MLB.formatGameTime(feed.gameData.datetime && feed.gameData.datetime.dateTime)) + '</div>');
+      centerBits.push('<div class="status-sub">' + UI.esc(scheduledTime) + '</div>');
     }
 
     $('header-away').innerHTML = sideBlock(away);
@@ -227,7 +231,7 @@
       metaBits.push('Game ' + feed.gameData.game.seriesGameNumber + ' of ' + feed.gameData.game.gamesInSeries);
     }
     if (feed.gameData.datetime && feed.gameData.datetime.dateTime) {
-      metaBits.push('🕒 ' + new Date(feed.gameData.datetime.dateTime).toLocaleString());
+      metaBits.push('🕒 ' + (scheduledTime === 'TBD' ? 'TBD' : new Date(feed.gameData.datetime.dateTime).toLocaleString()));
     }
     $('header-meta').innerHTML = metaBits.map(function (b) { return '<span>' + UI.esc(b) + '</span>'; }).join('');
 
@@ -246,14 +250,18 @@
     var wrap = $('live-panel');
     if (!wrap || !feed) return;
     var ls = linescoreOf(feed) || {};
-    var status = UI.statusMeta(feed.gameData.status || {});
+    var gameStatus = feed.gameData.status || {};
+    var status = UI.statusMeta(gameStatus);
+    var firstPitchTime = gameStatus.startTimeTBD === true
+      ? 'TBD'
+      : (MLB.formatGameTime(feed.gameData.datetime && feed.gameData.datetime.dateTime) || 'TBD');
     var play = currentPlay(feed);
     var last = lastCompletedPlay(feed);
 
     if (!status.live && !status.final) {
       wrap.innerHTML = '<div class="live-card"><h4>Pregame</h4><div class="last-play">' +
         UI.esc(status.label) + ' — first pitch ' +
-        UI.esc(MLB.formatGameTime(feed.gameData.datetime && feed.gameData.datetime.dateTime) || 'TBD') + '</div></div>';
+        UI.esc(firstPitchTime) + '</div></div>';
       return;
     }
 
