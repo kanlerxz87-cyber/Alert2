@@ -191,6 +191,165 @@ function mergeFeedLogPayloads(existing, incoming, dateStr) {
   };
 }
 
+/* ------------------------------------------------- official scoring log store
+ * A second, completely separate store.  The Replay Feed's alert log and the
+ * Official Scoring Log never share a file, a merge or a write path, so a
+ * problem in one cannot corrupt or stall the other.
+ *
+ *   data/scoring-log-<date>.json
+ *   GET  /api/scoring-log?date=YYYY-MM-DD
+ *   POST /api/scoring-log                (client background save)
+ *   GET  /api/scoring-log/stream?date=   (server-sent events push)
+ */
+
+function getScoringLogFilePath(dateStr) {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  return path.join(DATA_DIR, `scoring-log-${dateStr}.json`);
+}
+
+function readScoringLogFromDisk(dateStr) {
+  const filePath = getScoringLogFilePath(dateStr);
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (err) {
+    console.warn(`[server] failed to read scoring log for ${dateStr}:`, err);
+    return null;
+  }
+}
+
+function minIso(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return String(a) <= String(b) ? a : b;
+}
+
+function maxIso(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return String(a) >= String(b) ? a : b;
+}
+
+function statusRank(status) {
+  if (status === 'resolved' || status === 'unresolved') return 2;
+  if (status === 'flagged') return 1;
+  return 0;
+}
+
+function mergeObservationLists(a, b) {
+  const list = [];
+  const seen = new Set();
+  [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])].forEach((o) => {
+    if (!o) return;
+    const key = `${o.at}|${o.eventType}|${o.description}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push(o);
+  });
+  list.sort((x, y) => String(x.at || '').localeCompare(String(y.at || '')));
+  return list.slice(-30);
+}
+
+function mergeHistoryLists(a, b) {
+  const list = [];
+  const seen = new Set();
+  [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])].forEach((h) => {
+    if (!h) return;
+    const key = `${h.at}|${h.from}|${h.to}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push(h);
+  });
+  list.sort((x, y) => String(x.at || '').localeCompare(String(y.at || '')));
+  return list.slice(-25);
+}
+
+function mergeScoringRecord(prev, next) {
+  const merged = { ...prev, ...next };
+  merged.firstObservedAt = minIso(prev.firstObservedAt, next.firstObservedAt);
+  merged.lastObservedAt = maxIso(prev.lastObservedAt, next.lastObservedAt);
+  merged.detectedAt = minIso(prev.detectedAt, next.detectedAt) || merged.detectedAt || null;
+  merged.resolvedAt = minIso(prev.resolvedAt, next.resolvedAt) || merged.resolvedAt || null;
+  merged.status = statusRank(next.status) >= statusRank(prev.status) ? next.status : prev.status;
+  merged.wordingBefore = prev.wordingBefore || next.wordingBefore || null;
+  merged.wordingAfter = next.wordingAfter || prev.wordingAfter || null;
+  merged.stateBefore = prev.stateBefore || next.stateBefore || null;
+  merged.stateAfter = next.stateAfter || prev.stateAfter || null;
+  merged.observations = mergeObservationLists(prev.observations, next.observations);
+  merged.history = mergeHistoryLists(prev.history, next.history);
+  merged.note = next.note || prev.note || '';
+  merged.source = next.source || prev.source || '';
+  return merged;
+}
+
+function mergeScoringLogs(existing, incoming, dateStr) {
+  const now = Date.now();
+  const base = existing && existing.v === 1 ? existing : { records: [], classes: {}, scanned: {} };
+  const add = incoming && incoming.v === 1 ? incoming : { records: [], classes: {}, scanned: {} };
+
+  const map = new Map();
+  (Array.isArray(base.records) ? base.records : []).forEach((r) => {
+    if (r && r.id) map.set(r.id, r);
+  });
+  (Array.isArray(add.records) ? add.records : []).forEach((r) => {
+    if (!r || !r.id) return;
+    const prev = map.get(r.id);
+    map.set(r.id, prev ? mergeScoringRecord(prev, r) : r);
+  });
+
+  const records = [...map.values()]
+    .sort((x, y) => String(y.detectedAt || y.firstObservedAt || '').localeCompare(String(x.detectedAt || x.firstObservedAt || '')))
+    .slice(0, 800);
+
+  const classes = { ...(base.classes || {}) };
+  Object.keys(add.classes || {}).forEach((pk) => {
+    const addAt = add.scanned && add.scanned[pk];
+    const baseAt = base.scanned && base.scanned[pk];
+    if (!baseAt || (addAt && String(addAt) > String(baseAt))) classes[pk] = add.classes[pk];
+  });
+  const scanned = { ...(base.scanned || {}) };
+  Object.keys(add.scanned || {}).forEach((pk) => {
+    scanned[pk] = maxIso(scanned[pk], add.scanned[pk]);
+  });
+
+  return { v: 1, date: dateStr, savedAt: now, records, classes, scanned };
+}
+
+function writeScoringLogToDisk(dateStr, payload) {
+  const filePath = getScoringLogFilePath(dateStr);
+  if (!filePath) return false;
+  try {
+    const merged = mergeScoringLogs(readScoringLogFromDisk(dateStr), payload, dateStr);
+    const tempPath = `${filePath}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempPath, JSON.stringify(merged, null, 2), 'utf8');
+    fs.renameSync(tempPath, filePath);
+    return merged;
+  } catch (err) {
+    console.error(`[server] failed to write scoring log for ${dateStr}:`, err);
+    return false;
+  }
+}
+
+const scoringSseClients = new Set();
+
+function broadcastScoringLog(dateStr, payload) {
+  if (!scoringSseClients.size) return 0;
+  let body;
+  try {
+    body = JSON.stringify(payload);
+  } catch (err) {
+    console.warn('[server] could not serialize the scoring log for push:', err);
+    return 0;
+  }
+  const frame = `event: scoring-log\ndata: ${body}\n\n`;
+  let sent = 0;
+  scoringSseClients.forEach((client) => {
+    if (client.date !== dateStr) return;
+    if (sseWrite(client.res, frame)) sent += 1;
+  });
+  return sent;
+}
+
 /* --------------------------------------------------------------- push (SSE)
  * Live tail of the shared feed log. Polling it (GET /api/feed-log) leaves a
  * window of up to the poll interval between "another browser/session wrote an
@@ -320,6 +479,86 @@ const server = http.createServer((req, res) => {
     // idempotently, exactly like its ordinary GET).
     const current = readLogFromDisk(dateStr);
     if (current) sseWrite(res, `event: feed-log\ndata: ${JSON.stringify(current)}\n\n`);
+    return;
+  }
+
+  // GET /api/scoring-log/stream?date=YYYY-MM-DD — independent SSE tail.
+  if (pathname === '/api/scoring-log/stream' && req.method === 'GET') {
+    const dateStr = reqUrl.searchParams.get('date');
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      sendError(res, 400, 'date query parameter in YYYY-MM-DD format is required');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Access-Control-Allow-Origin': '*',
+    });
+    sseWrite(res, `retry: 3000\nevent: connected\ndata: {"date":"${dateStr}"}\n\n`);
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    const client = { res, date: dateStr };
+    scoringSseClients.add(client);
+    const heartbeat = setInterval(() => { sseWrite(res, ': hb\n\n'); }, 20000);
+    if (typeof heartbeat.unref === 'function') heartbeat.unref();
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      scoringSseClients.delete(client);
+    };
+    req.on('close', cleanup);
+    req.on('error', cleanup);
+    res.on('close', cleanup);
+    const current = readScoringLogFromDisk(dateStr);
+    if (current) sseWrite(res, `event: scoring-log\ndata: ${JSON.stringify(current)}\n\n`);
+    return;
+  }
+
+  // GET /api/scoring-log?date=YYYY-MM-DD
+  if (pathname === '/api/scoring-log' && req.method === 'GET') {
+    const dateStr = reqUrl.searchParams.get('date');
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      sendError(res, 400, 'date query parameter in YYYY-MM-DD format is required');
+      return;
+    }
+    const log = readScoringLogFromDisk(dateStr);
+    sendJSON(res, 200, log || {
+      v: 1, date: dateStr, savedAt: Date.now(), records: [], classes: {}, scanned: {},
+    });
+    return;
+  }
+
+  // POST /api/scoring-log
+  if (pathname === '/api/scoring-log' && req.method === 'POST') {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 20 * 1024 * 1024) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        if (!payload || typeof payload !== 'object' || payload.v !== 1 || !payload.date ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(payload.date)) {
+          sendError(res, 400, 'Invalid payload: must be object with v: 1 and valid date (YYYY-MM-DD)');
+          return;
+        }
+        const saved = writeScoringLogToDisk(payload.date, payload);
+        if (!saved) {
+          sendError(res, 500, 'Failed to save scoring log to disk');
+          return;
+        }
+        const pushed = broadcastScoringLog(payload.date, saved);
+        sendJSON(res, 200, { ok: true, date: payload.date, savedAt: saved.savedAt, recordsCount: saved.records.length, pushed });
+      } catch (err) {
+        sendError(res, 400, `JSON parse error: ${err.message}`);
+      }
+    });
     return;
   }
 

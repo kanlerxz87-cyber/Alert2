@@ -1118,6 +1118,114 @@ node server.mjs                  # optional persistence backend (feed log + SSE)
       </tbody>
     </table>
 
+    <h2>18. Real-time state capture, alert sound &amp; the separate scoring log (session 2026-11-27)</h2>
+    <p class="flagged-intro">
+      These items cover the latency, alert-sound, official game-state and separate scoring-log work.
+      Everything verifiable was verified; what could not be exercised from the build sandbox is
+      recorded here rather than claimed. Nothing is inferred or zero-filled anywhere in the feature.
+    </p>
+    <table class="verify">
+      <thead>
+        <tr><th>#</th><th>Item</th><th>Evidence / behaviour</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>L-1</td>
+          <td class="wrap">Combined leaf projection used for every per-game scan</td>
+          <td class="wrap">
+            The scan now makes <strong>one</strong> projected <code>feed/live</code> request per game
+            (<code>assets/js/api.js</code> <code>LIVE_GAME_FIELDS</code>) instead of one <code>playByPlay</code> plus one counters request.
+            The projection was checked against the live API on 2026-11-27 for <code>gameData.status</code>,
+            <code>gameData.review</code>, <code>gameData.absChallenges</code>,
+            <code>liveData.plays.currentPlay</code> and <code>liveData.linescore{teams.runs,offense,balls,strikes,outs}</code>
+            — all returned together in one response.
+            <br><strong>Not exercisable here:</strong> the full play-by-play leaf set returned together with
+            the linescore in a single response (the payload for a complete game is too large to inspect in this
+            environment, and <code>statsapi.mlb.com</code> is not reachable from the sandbox shell).
+            Mitigation: <code>liveGame()</code> validates that the response actually carries
+            <code>liveData.plays</code> and otherwise falls back to the exact <code>playByPlay</code> endpoint the
+            site already used, so a projection change degrades to the previous behaviour instead of blanking the feed.
+          </td>
+          <td class="wrap"><a href="https://statsapi.mlb.com/api/v1.1/game/824638/feed/live?fields=gameData,status,liveData,plays,currentPlay,linescore,teams,runs,offense,balls,strikes,outs" target="_blank" rel="noopener">official projected feed (game 824638)</a></td>
+        </tr>
+        <tr>
+          <td>L-2</td>
+          <td class="wrap">Alert sound: audibility and pleasantness are subjective</td>
+          <td class="wrap">
+            The alert is a synthesized ~3-second rain-drop signature (soft noise bed + six water-drop
+            plinks into a warm low pad, gentle compressor and a ~0.3 wet echo). There is no audio file, so
+            nothing is downloaded and nothing can 404. Volume defaults to 55% and is adjustable; the sound can
+            be muted, and <em>Test alert</em> plays it once even while muted so the alert path can be checked.
+            Browsers block audio until a user gesture: a chime requested before any interaction is silently
+            dropped (the same constraint the earlier chime had), which is why the test button exists.
+            Whether it is pleasant for a whole season cannot be verified by a test — it is a listening judgement.
+          </td>
+          <td class="wrap">Unverified (subjective)</td>
+        </tr>
+        <tr>
+          <td>L-3</td>
+          <td class="wrap">Alerts are armed after a game's first observation</td>
+          <td class="wrap">
+            Opening the feed mid-game restores every event already in the payload as rows, but does not sound
+            an alert for them: the first successful observation of each game is a silent baseline. Events that
+            land after that alert normally. This is deliberate (it prevents a burst of historical alerts on every
+            page load) and is visible in the row timestamps. Restored rows are unaffected otherwise.
+          </td>
+          <td class="wrap">Behaviour documented</td>
+        </tr>
+        <tr>
+          <td>L-4</td>
+          <td class="wrap">ABS pitch challenges now alert (they did not before)</td>
+          <td class="wrap">
+            Every event that lands in the feed alerts, and ABS pitch challenges are tracked in the feed's ABS
+            tab, so they now use the same 3-second signature. All alerts go through one queue that never
+            overlaps: an identical alert inside 4 s is dropped, at most two wait in line, and the next sound
+            starts after the previous one ends. ABS-heavy games therefore coalesce rather than pile up.
+          </td>
+          <td class="wrap">Behaviour documented</td>
+        </tr>
+        <tr>
+          <td>L-5</td>
+          <td class="wrap">“Before” can only exist if it was observed</td>
+          <td class="wrap">
+            A scoring change's before wording/state is the last observation taken before the payload changed,
+            and a pending ruling's before wording is the first observation of
+            <code>os_ruling_pending_primary/_prior</code>. If no page was open while either condition existed,
+            the row says so (“not observed”) and shows only the after side — nothing is reconstructed from the
+            final description. The same rule applies to reviews the page opens after resolution.
+          </td>
+          <td class="wrap">Behaviour documented</td>
+        </tr>
+        <tr>
+          <td>L-6</td>
+          <td class="wrap">Browser storage caps</td>
+          <td class="wrap">
+            The independent scoring log keeps 14 dates in <code>localStorage</code> at up to 800 records per
+            date; the Replay Feed's own log keeps 7 dates at up to 500 entries. With <code>node server.mjs</code>
+            running, every date is also written to <code>data/scoring-log-&lt;date&gt;.json</code> and
+            <code>data/feed-log-&lt;date&gt;.json</code>. There is no official source for these limits; they are
+            client-side retention choices.
+          </td>
+          <td class="wrap">Unverified (implementation choice)</td>
+        </tr>
+        <tr>
+          <td>L-7</td>
+          <td class="wrap">Request budget after the change</td>
+          <td class="wrap">
+            A full 15-game live slate: one request per game per scan = ~60 req/s at the 250 ms cadence
+            (~67 req/s while any game is in review at 150 ms), plus the 125 ms lean status sweep (~8 req/s,
+            ~2 KB each) and a 3-second hydrated schedule refresh. That replaces the former ~60 play-by-play
+            plus ~60 counter plus ~4 schedule requests per second (~132 req/s) with richer payloads, so the
+            change reduces request count. The Official Scoring Log polls independently (~21 req/s on the same
+            slate at its 700 ms cadence) and only while its page is open. The StatsAPI publishes no rate limit;
+            the client still honours HTTP 429 with a quiet period, pauses on hidden tabs, and bounds post-final
+            re-scans to 30 minutes.
+          </td>
+          <td class="wrap">Measured by design, no official limit published</td>
+        </tr>
+      </tbody>
+    </table>
+
   </main>
 
   <footer class="site-footer">

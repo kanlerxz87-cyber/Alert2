@@ -308,7 +308,17 @@ function routeFetch(url) {
   else if (/\/game\/823109\/playByPlay/.test(u)) body = PBP_823109;
   else if (/\/game\/824466\/playByPlay/.test(u)) body = { allPlays: [] };
   else if (/\/game\/823109\/feed\/live/.test(u)) body = FEED_823109;
-  else if (/\/game\/824466\/feed\/live/.test(u)) body = FEED_823109;
+  else if (/\/game\/824466\/feed\/live/.test(u)) {
+    /* Same shape, but this game's play-by-play stub is empty — the projected
+     * feed must stay consistent with it. */
+    body = {
+      gameData: FEED_823109.gameData,
+      liveData: {
+        plays: { allPlays: [], currentPlay: null },
+        linescore: FEED_823109.liveData.linescore,
+      },
+    };
+  }
   else if (/\/people\/660271\/stats/.test(u)) body = u.includes('opposingPlayerId') ? H2H_STATS : HITTER_STATS;
   else if (/\/people\/592789\/stats/.test(u)) body = PITCHER_STATS;
   else if (u.includes('/api/feed-log')) body = { v: 1, date: '2026-09-15', entries: [], order: [], snapshots: {}, irregularities: {}, grace: {}, settled: [] };
@@ -526,6 +536,36 @@ console.log('\n[3] game.html — header, live module, linescore, PBP, tabs');
     assert(doc.getElementById('live-panel').querySelectorAll('.base-diamond i.on').length >= 1, 'no occupied base rendered');
   });
 
+  const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/;
+
+  await check('capture line timestamps the official state to the second', () => {
+    const el = doc.getElementById('capture-line');
+    assert(!!el, '#capture-line missing from game.html');
+    const html = text(el);
+    assert(/^State captured /.test(html), 'unexpected capture wording: ' + html);
+    const iso = html.match(ISO_RE);
+    assert(iso, 'capture line carries no ISO second: ' + html);
+    const at = Date.parse(iso[0]);
+    assert(Number.isFinite(at) && Math.abs(Date.now() - at) < 120000,
+      'capturedAt is not the observation time: ' + iso[0]);
+    assert(/\bP \d+\b/.test(html), 'capture line carries no pitch count: ' + html);
+    assert(/\b\d+-\d+\b/.test(html), 'capture line carries no count: ' + html);
+    assert(!/playByPlay fallback/.test(html), 'feed/live should not need the fallback: ' + html);
+  });
+
+  await check('capture line advances on the next poll (per-second observation)', async () => {
+    const before = text(doc.getElementById('capture-line'));
+    await new Promise((r) => setTimeout(r, 1300));
+    const after = text(doc.getElementById('capture-line'));
+    assert(after !== before, 'capture line did not update after a re-poll: ' + before);
+    const a = before.match(ISO_RE);
+    const b = after.match(ISO_RE);
+    assert(a && b && Date.parse(b[0]) > Date.parse(a[0]),
+      'capture second did not advance: ' + before + ' -> ' + after);
+    assert(/\bP \d+\b/.test(after), 'capture line lost its pitch count after the re-poll: ' + after);
+    assert(/Top|Bot|Mid|End/.test(after), 'capture line lost its inning after the re-poll: ' + after);
+  });
+
   await check('linescore table has one column per inning plus R/H/E', () => {
     const table = doc.querySelector('#linescore-wrap table.linescore');
     assert(!!table, 'linescore table missing');
@@ -640,7 +680,13 @@ console.log('\n[5] reviews.html — the all-games Replay Feed');
     dom.window.ReplayFeed.setFilter('abs');
     let html = text(doc.getElementById('feed-list'));
     assert(html.includes('ABS Pitch Challenge'), 'ABS filter lost its rows');
-    assert(!html.includes('Official Scorer Ruling Pending'), 'ABS filter leaked non-ABS rows');
+    /* Row level, not text level: a captured state box legitimately quotes the
+     * official status wording, so check what the rows actually are. */
+    const absRows = [...doc.getElementById('feed-list').querySelectorAll('.feed-row:not(.flagged-row)')];
+    assert(absRows.length > 0, 'ABS filter rendered no rows');
+    absRows.forEach((row) => {
+      assert(text(row).includes('ABS Pitch Challenge'), 'ABS filter leaked a non-ABS row: ' + text(row).slice(0, 120));
+    });
     dom.window.ReplayFeed.setFilter('scoring');
     html = text(doc.getElementById('feed-list'));
     assert(html.length >= 0, 'scoring view crashed');
@@ -655,9 +701,16 @@ console.log('\n[5] reviews.html — the all-games Replay Feed');
   });
 
   await check('sound / notification toggles flip state and persist the preference', () => {
+    dom.window.AlertSound.setEnabled(false);
     dom.window.ReplayFeed.toggleSound();
     assert(dom.window.ReplayFeed.state.soundOn === true, 'sound toggle did not flip');
     assert(dom.window.localStorage.getItem('mlbp.pref.sound') === '1', 'sound preference not saved');
+    assert(dom.window.AlertSound.isEnabled() === true, 'alert-sound preference not in sync');
+    assert((dom.window.document.getElementById('sound-toggle-btn').textContent || '').includes('Sound On'),
+      'toggle button label not updated');
+    dom.window.AlertSound.resetStats();
+    dom.window.ReplayFeed.testSound();
+    assert(dom.window.AlertSound.stats.attempts === 1, 'Test alert must request exactly one alert');
     dom.window.ReplayFeed.toggleNotify();
     assert(dom.window.ReplayFeed.state.notifyOn === true, 'notification toggle did not flip');
   });
@@ -1115,35 +1168,38 @@ console.log('\n[13] reference-parity fixes (session 6e2a58d9: G-2…G-5, G-9)');
   });
 
   async function rescanAnd(fn) {
-    st.lastChimeAt = 0;
-    st.soundOn = true;
+    /* The alert path is alert-sound.js; its counters are the observable proof
+     * that the feed asked for an alert (jsdom has no audio device). */
+    w.AlertSound.setEnabled(true);
+    w.AlertSound.resetStats();
     w.ReplayFeed.scan();
     await new Promise((r) => setTimeout(r, 500));
     while (st.scanning) await new Promise((r) => setTimeout(r, 50));
-    fn(st.lastChimeAt);
-    st.soundOn = false;
+    fn(w.AlertSound.stats.attempts, w.AlertSound.stats.lastKind);
+    w.AlertSound.setEnabled(false);
   }
 
   await check('G-3: new non-ABS review rows chime (challenges/reviews/boundary calls)', async () => {
     const keep = st.entries.filter((e) => !(e.review && e.review.code === 'NA'));
     assert(keep.length === st.entries.length - 1, 'expected exactly one NA row in fixtures');
     st.entries = keep;
-    await rescanAnd((at) => assert(at > 0, 'new umpire-review row did not chime'));
+    await rescanAnd((n) => assert(n > 0, 'new umpire-review row did not alert'));
   });
 
   await check('G-3: new official-scorer pending rulings chime', async () => {
     const keep = st.entries.filter((e) => e.kind !== 'pending');
     assert(keep.length < st.entries.length, 'expected a pending row in fixtures');
     st.entries = keep;
-    await rescanAnd((at) => assert(at > 0, 'new pending ruling did not chime'));
+    await rescanAnd((n) => assert(n > 0, 'new pending ruling did not alert'));
   });
 
-  await check('G-3: routine ABS pitch challenges never chime (uploaded button title)', async () => {
+  await check('G-3: ABS pitch challenges alert too (every feed event alerts)', async () => {
     const keep = st.entries.filter((e) => !(e.review && e.review.isABS));
     assert(keep.length < st.entries.length, 'expected an ABS row in fixtures');
     st.entries = keep;
-    await rescanAnd((at) => {
-      assert(at === 0, 'routine ABS row must not chime, got lastChimeAt=' + at);
+    await rescanAnd((n, kind) => {
+      assert(n > 0, 'a new ABS row must alert — every event in the feed alerts');
+      assert(kind === 'review', 'ABS alert should use the review signature, got ' + kind);
       assert(st.entries.some((e) => e.review && e.review.isABS), 'ABS row should still be tracked');
     });
   });
@@ -1152,10 +1208,10 @@ console.log('\n[13] reference-parity fixes (session 6e2a58d9: G-2…G-5, G-9)');
     const ma = st.entries.find((e) => e.review && e.review.code === 'MA');
     assert(ma && ma.review.runsAtRiskCount === 1, 'fixture MA row should carry 1 run at risk');
     st.entries = st.entries.filter((e) => e !== ma);
-    await rescanAnd((at) => assert(at > 0, 'new runs-at-risk review did not chime'));
+    await rescanAnd((n) => assert(n > 0, 'new runs-at-risk review did not alert'));
     const again = st.entries.find((e) => e.review && e.review.code === 'MA');
-    assert(again && again.warned === true, 'risk chime must mark the row as warned');
-    await rescanAnd((at) => assert(at === 0, 'runs-at-risk review must not re-chime (fires once)'));
+    assert(again && again.warned === true, 'risk alert must mark the row as warned');
+    await rescanAnd((n) => assert(n === 0, 'runs-at-risk review must not re-alert (fires once)'));
   });
 
   await check('G-3: official scoring changes chime and render in All', async () => {
@@ -1173,19 +1229,24 @@ console.log('\n[13] reference-parity fixes (session 6e2a58d9: G-2…G-5, G-9)');
     const mutDom = await boot('reviews.html', { fetchImpl: mutFetch, beforeParse(x) { x.localStorage.clear(); } });
     await new Promise((r) => setTimeout(r, 700));
     const mst = mutDom.window.ReplayFeed.state;
-    /* Reclassify a completed play between polls (error→single style diff). */
+    /* Reclassify a completed play between polls (error→single style diff).
+     * The scan reads the projected feed/live payload, so mutate that payload
+     * too (the playByPlay override above covers the fallback path). */
     pbp.allPlays[0].result.eventType = 'field_error';
     pbp.allPlays[0].result.description = 'Reached on error.';
+    const feedPlay = FEED_823109.liveData.plays.allPlays[0];
+    feedPlay.result.eventType = 'field_error';
+    feedPlay.result.description = 'Reached on error.';
     await new Promise((resolve) => {
-      mst.lastChimeAt = 0;
-      mst.soundOn = true;
+      mutDom.window.AlertSound.setEnabled(true);
+      mutDom.window.AlertSound.resetStats();
       mutDom.window.ReplayFeed.scan();
       setTimeout(resolve, 500);
     });
     while (mst.scanning) await new Promise((r) => setTimeout(r, 50));
     assert(mst.entries.some((e) => e.kind === 'scoring_change'),
       'reclassification between polls must create a scoring-change row');
-    assert(mst.lastChimeAt > 0, 'new official scoring change must chime');
+    assert(mutDom.window.AlertSound.stats.attempts > 0, 'new official scoring change must alert');
     mutDom.window.ReplayFeed.setFilter('all');
     const html = text(mutDom.window.document.getElementById('feed-list'));
     assert(html.includes('Official Scoring Change'), 'scoring change must render in All');

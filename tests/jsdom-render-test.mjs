@@ -94,13 +94,23 @@ async function stubFetch(url) {
             gamePk: g.gamePk,
             season: g.season,
             status: g.status,
+            gameDate: g.gameDate,
+            officialDate: g.officialDate,
+            teams: g.teams
+              ? {
+                  away: { team: { id: g.teams.away.team.id, name: g.teams.away.team.name } },
+                  home: { team: { id: g.teams.home.team.id, name: g.teams.home.team.name } },
+                }
+              : undefined,
           })),
         },
       ],
     });
   }
+  // Projected live game scan (play-by-play + linescore + counters): full fixture.
+  if (/\/feed\/live\?fields=/.test(u) && /liveData/.test(u)) return jsonResponse(feed);
   // Lean per-game status probe used by the game page watcher.
-  if (/\/feed\/live\?fields=/.test(u) || /\/feed\/live\?[^]*fields=gameData,status/.test(u)) {
+  if (/\/feed\/live\?fields=/.test(u)) {
     return jsonResponse({ gameData: { status: feed.gameData.status } });
   }
   if (/\/feed\/live/.test(u)) return jsonResponse(feed);
@@ -136,6 +146,11 @@ async function stubFetch(url) {
     });
   }
   if (/\/api\/v1\/(?!schedule|gameStatus|teams|people)/.test(u)) return jsonResponse({});
+  // Local persistence endpoints (the independent scoring log; no server here).
+  if (/\/api\/scoring-log/.test(u)) {
+    if (/\/stream/.test(u)) return jsonResponse({}, 404);
+    return jsonResponse({ v: 1, date: '2026-08-28', savedAt: Date.now(), records: [], classes: {}, scanned: {} });
+  }
   // Anything else (local persistence endpoints when no server is running).
   return jsonResponse({}, 404);
 }
@@ -247,6 +262,18 @@ console.log(`jsdom-render-test: ${LIVE ? 'LIVE official API' : 'fixtures'} mode`
   check('reviews: notification toggle present', !!doc.querySelector('#notify-toggle-btn'));
   check('reviews: countdown element present', !!doc.querySelector('#countdown'));
   check('reviews: live indicator present', !!doc.querySelector('#live-dot'));
+  check('reviews: test-alert button present', !!doc.querySelector('#sound-test-btn'));
+  check('reviews: alert volume control present', !!doc.querySelector('#sound-volume'));
+  const liveState = textOf(doc.querySelector('#live-state'));
+  check('reviews: official game-state board rendered', /Official live game state/i.test(liveState), liveState.slice(0, 200));
+  check('reviews: every slate game has a state card',
+    doc.querySelectorAll('#live-state .ls-card').length === schedule.dates[0].games.length,
+    `cards=${doc.querySelectorAll('#live-state .ls-card').length} games=${schedule.dates[0].games.length}`);
+  check('reviews: state card is captured to the second',
+    /Captured \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/.test(liveState), liveState.slice(0, 300));
+  check('reviews: row shows before/after captured state', doc.querySelectorAll('#feed-list .state-pair').length > 0,
+    `state pairs=${doc.querySelectorAll('#feed-list .state-pair').length}`);
+  check('reviews: row labels the before/after official state', /Before/.test(feedText) && /After/.test(feedText) && /Official status/.test(feedText), feedText.slice(0, 400));
   for (const t of [...doc.querySelectorAll('#feed-tabs button, #feed-tabs .tab-btn')].slice(0, 8)) {
     t.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   }
@@ -257,6 +284,172 @@ console.log(`jsdom-render-test: ${LIVE ? 'LIVE official API' : 'fixtures'} mode`
     btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     return errors.length === 0;
   })(), errors.join(' | '));
+  close();
+}
+
+/* 3c. game-state.js / scoring-log.js / alert-sound.js — pure behaviour, using
+ *     the very same official fixture the page rendered. */
+{
+  const { doc, window, close, errors } = await render('reviews.html', { query: '?date=2026-08-28', wait: 1200 });
+  const GS = window.GameState;
+  const SL = window.ScoringLog;
+  const AS = window.AlertSound;
+  const snap = GS.snapshot(feed, { gamePk: 824638, at: Date.UTC(2026, 7, 28, 19, 4, 12, 345) });
+
+  check('state: snapshot carries an ISO capture to the second', snap.capturedAt === '2026-08-28T19:04:12Z', snap.capturedAt);
+  check('state: snapshot carries the local clock', /^\d{2}:\d{2}:\d{2}$/.test(snap.localClock), snap.localClock);
+  check('state: official score read from the linescore', snap.score && snap.score.away === 10 && snap.score.home === 8,
+    JSON.stringify(snap.score));
+  check('state: outs read from the official count', snap.outs === 3, String(snap.outs));
+  check('state: pitch count totals the playEvents', typeof snap.pitchCount.total === 'number' && snap.pitchCount.total >= 0,
+    JSON.stringify(snap.pitchCount));
+  check('state: batter and pitcher named from the payload', !!snap.pitcher && snap.pitcher.name.length > 0, JSON.stringify(snap.pitcher));
+  check('state: official wording included', snap.official.length > 0 && /Final/.test(snap.official.join(' ')), snap.official.join(' | '));
+
+  const after = GS.snapshot(feed, { gamePk: 824638, at: Date.UTC(2026, 7, 28, 19, 5, 40, 0) });
+  after.score = { away: 9, home: 8 };
+  const diff = GS.diff(snap, after);
+  check('state: diff reports a score change', diff.some((d) => d.key === 'score'), JSON.stringify(diff));
+
+  /* scoring-log detection, on official-shaped plays */
+  const pendingPlay = {
+    about: { atBatIndex: 70, isComplete: true, inning: 7, halfInning: 'top', isTopInning: true },
+    count: { outs: 1, balls: 2, strikes: 1 },
+    matchup: { batter: { id: 1, fullName: 'Test Batter' }, pitcher: { id: 2, fullName: 'Test Pitcher' } },
+    result: { eventType: 'os_ruling_pending_primary', description: 'Official Scorer Ruling Pending', rbi: 0, awayScore: 3, homeScore: 2 },
+    playEvents: [{ isPitch: true, index: 0 }, { isPitch: true, index: 1 }],
+  };
+  check('scoring-log: pending event type is recognised', SL.isPendingType('os_ruling_pending_primary') === true);
+  const store = SL.emptyStore('2026-08-28');
+  const added1 = SL.observe(store, {
+    gamePk: 824638, matchupLabel: 'CIN @ CHC', plays: [pendingPlay],
+    observedAt: Date.UTC(2026, 7, 28, 19, 10, 5), state: snap,
+  });
+  check('scoring-log: pending ruling recorded with wording + state', added1.length === 1 &&
+    store.records[0].kind === 'pending' && !!store.records[0].wordingBefore &&
+    !!store.records[0].stateBefore, JSON.stringify(added1));
+
+  const resolvedPlay = JSON.parse(JSON.stringify(pendingPlay));
+  resolvedPlay.result.eventType = 'single';
+  resolvedPlay.result.description = 'Test Batter singles on a line drive to left field.';
+  const added2 = SL.observe(store, {
+    gamePk: 824638, matchupLabel: 'CIN @ CHC', plays: [resolvedPlay],
+    observedAt: Date.UTC(2026, 7, 28, 19, 12, 30), state: after,
+  });
+  const pendingRec = store.records.find((r) => r.kind === 'pending');
+  const rulingRec = store.records.find((r) => r.kind === 'ruling_resolved');
+  check('scoring-log: pending ruling resolves with before/after wording', !!pendingRec &&
+    pendingRec.status === 'resolved' && pendingRec.wordingAfter.eventType === 'single', JSON.stringify(pendingRec && pendingRec.status));
+  check('scoring-log: resolved ruling recorded as its own row', !!rulingRec &&
+    rulingRec.wordingBefore.eventType === 'os_ruling_pending_primary' && rulingRec.wordingAfter.eventType === 'single',
+    JSON.stringify(rulingRec && rulingRec.wordingAfter));
+
+  const changeBefore = JSON.parse(JSON.stringify(resolvedPlay));
+  changeBefore.result.eventType = 'single';
+  const changeAfter = JSON.parse(JSON.stringify(resolvedPlay));
+  changeAfter.result.eventType = 'field_error';
+  changeAfter.result.description = 'Test Batter reaches on a fielding error by the shortstop.';
+  const store2 = SL.emptyStore('2026-08-28');
+  SL.observe(store2, { gamePk: 999, matchupLabel: 'CIN @ CHC', plays: [changeBefore], observedAt: Date.UTC(2026, 7, 28, 19, 20, 0), state: snap });
+  SL.observe(store2, { gamePk: 999, matchupLabel: 'CIN @ CHC', plays: [changeAfter], observedAt: Date.UTC(2026, 7, 28, 19, 26, 45), state: after });
+  const changeRec = store2.records.find((r) => r.kind === 'change');
+  check('scoring-log: hit → error logged with before/after wording', !!changeRec &&
+    changeRec.wordingBefore.eventType === 'single' && changeRec.wordingAfter.eventType === 'field_error' &&
+    !!changeRec.stateBefore && !!changeRec.stateAfter, JSON.stringify(changeRec && changeRec.kind));
+
+  const merged = SL.mergeStores(store2, JSON.parse(JSON.stringify(store2)), '2026-08-28');
+  check('scoring-log: merge is idempotent', merged.records.length === store2.records.length,
+    `${merged.records.length} vs ${store2.records.length}`);
+
+  check('alert-sound: toggle stores the preference', AS.setEnabled(false) === false &&
+    window.localStorage.getItem('mlbp.pref.sound') === '0', String(window.localStorage.getItem('mlbp.pref.sound')));
+  check('alert-sound: a play request never throws without an AudioContext', (() => {
+    try { AS.play('review'); AS.test(); return true; } catch (e) { return false; }
+  })());
+  check('alert-sound: three-second signature', AS.DURATION_MS === 3000, String(AS.DURATION_MS));
+  check('state + log scripts raised no errors', errors.length === 0, errors.join(' | '));
+  close();
+}
+
+/* 3d. scoring.html — the independent official scoring log */
+{
+  const pushes = [];
+  const { doc, window, errors, close } = await render('scoring.html', {
+    query: '?date=2026-08-28',
+    wait: 1400,
+    before(w) {
+      /* jsdom has no EventSource: a minimal one so the page's own push
+       * subscription can be asserted (the endpoint is the server's). */
+      w.EventSource = class FakeEventSource {
+        constructor(url) { this.url = url; this.listeners = {}; this.closed = false; pushes.push(this); }
+        addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+        close() { this.closed = true; }
+        emit(type, data) { (this.listeners[type] || []).forEach((fn) => fn({ data: JSON.stringify(data) })); }
+      };
+    },
+  });
+  check('scoring: pending section present', !!doc.querySelector('#scoring-pending'));
+  check('scoring: changes section present', !!doc.querySelector('#scoring-changes'));
+  check('scoring: summary tiles rendered', textOf(doc.querySelector('#scoring-stats')).length > 0);
+  check('scoring: filter tabs rendered', doc.querySelectorAll('#scoring-tabs .tab-btn').length >= 4);
+  check('scoring: status line reports the log store',
+    /logged record|storage/i.test(textOf(doc.querySelector('#status-line'))) || /logged record/i.test(textOf(doc.querySelector('#status-line'))),
+    textOf(doc.querySelector('#status-line')));
+  check('scoring: export button present', !!doc.querySelector('#export-btn'));
+
+  /* Inject one official-shaped pending ruling through the real observer and
+   * confirm it renders and is persisted to this browser's store. */
+  const pendingPlay = {
+    about: { atBatIndex: 70, isComplete: true, inning: 7, halfInning: 'top', isTopInning: true },
+    count: { outs: 1 },
+    matchup: { batter: { id: 1, fullName: 'Test Batter' }, pitcher: { id: 2, fullName: 'Test Pitcher' } },
+    result: { eventType: 'os_ruling_pending_primary', description: 'Official Scorer Ruling Pending', awayScore: 3, homeScore: 2 },
+    playEvents: [],
+  };
+  const SL = window.ScoringLog;
+  const state = window.GameState.snapshot(feed, { gamePk: 824638, at: Date.UTC(2026, 7, 28, 19, 30, 0) });
+  SL.observeGame({
+    date: '2026-08-28', gamePk: 824638, matchupLabel: 'CIN @ CHC',
+    plays: [pendingPlay], observedAt: Date.UTC(2026, 7, 28, 19, 30, 0), state: state,
+  });
+  SL.setFilter('all');
+  const pendingText = textOf(doc.querySelector('#scoring-pending'));
+  check('scoring: pending ruling rendered with official wording', /Official Scorer Ruling Pending/.test(pendingText), pendingText.slice(0, 240));
+  check('scoring: pending card shows captured state', /Captured|Score/i.test(pendingText) && /Official status/i.test(pendingText));
+  const stored = window.localStorage.getItem('mlbp.scoringlog.2026-08-28');
+  check('scoring: log persisted in localStorage', !!stored && /os_ruling_pending_primary/.test(stored), String(stored && stored.length));
+  check('scoring: alerts are independent (no sound on this page)', !doc.querySelector('#sound-toggle-btn'));
+
+  /* Live push: the scoring log has its own stream, and a frame written by
+   * another tab lands in the page without a reload. */
+  SL.api.checked = true;
+  SL.api.available = true;
+  const stream = SL.openStream('2026-08-28');
+  check('scoring: subscribes to its own push endpoint (not the feed log one)',
+    !!stream && stream.url === '/api/scoring-log/stream?date=2026-08-28',
+    String(stream && stream.url));
+  check('scoring: the feed-log stream is never opened by this page',
+    pushes.every((p) => !/feed-log/.test(p.url)), pushes.map((p) => p.url).join(' '));
+  const pushed = {
+    v: 1,
+    date: '2026-08-28',
+    records: [{
+      id: '999:5:pending', kind: 'pending', gamePk: 999, matchupLabel: 'NYM @ PHI', atBatIndex: 5,
+      status: 'open', firstObservedAt: '2026-08-28T18:41:09Z', lastObservedAt: '2026-08-28T18:41:09Z',
+      wordingBefore: { eventType: 'os_ruling_pending_primary', description: 'Pushed Ruling Wording' },
+      stateBefore: { capturedAt: '2026-08-28T18:41:09Z' },
+    }],
+  };
+  stream.emit('scoring-log', pushed);
+  check('scoring: a pushed record renders without a reload',
+    /Pushed Ruling Wording/.test(textOf(doc.querySelector('#scoring-pending'))),
+    textOf(doc.querySelector('#scoring-pending')).slice(0, 200));
+  check('scoring: a pushed record is persisted locally',
+    /999:5:pending/.test(window.localStorage.getItem('mlbp.scoringlog.2026-08-28') || ''),
+    String((window.localStorage.getItem('mlbp.scoringlog.2026-08-28') || '').length));
+  SL.closeStream();
+  check('scoring: closing the stream does not throw', stream.closed === true);
+  check('scoring: no uncaught errors', errors.length === 0, errors.join(' | '));
   close();
 }
 

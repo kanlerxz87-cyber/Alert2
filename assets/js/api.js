@@ -248,6 +248,65 @@
       });
   }
 
+  /* One projected feed/live request per game scan.
+   *
+   * The Replay Feed used to make two requests per game per scan: playByPlay
+   * for the events and a leaf-projected feed/live for the official challenge
+   * counters.  Both live in feed/live, so a single leaf projection returns
+   * them - plus the official linescore (score / outs / count / runners on
+   * base) and the current plate appearance - in one round trip.  Halving the
+   * request count leaves the connection free for the next scan, which is the
+   * only real way a pull-only client gets fresher.
+   *
+   * Leaf projections verified against the live API 2026-11-27: gameData.status,
+   * gameData.review (manager counters), gameData.absChallenges (ABS counters),
+   * liveData.plays.currentPlay, liveData.linescore (teams.runs, offense,
+   * balls/strikes/outs) and the play-by-play leaves below all return together.
+   * If the projection ever stops returning plays, liveGame() falls back to the
+   * lean playByPlay endpoint the feed has always used. */
+  var LIVE_GAME_FIELDS = [
+    /* gameData.status + official challenge counters */
+    'gameData', 'game', 'pk', 'status', 'abstractGameState', 'codedGameState', 'detailedState',
+    'statusCode', 'reason', 'startTimeTBD', 'abstractGameCode',
+    'review', 'absChallenges', 'hasChallenges', 'away', 'home', 'used', 'remaining',
+    'usedSuccessful', 'usedFailed',
+    /* liveData.plays - completed plays and the plate appearance in progress */
+    'liveData', 'plays', 'currentPlay', 'allPlays',
+    'about', 'atBatIndex', 'hasReview', 'isComplete', 'inning', 'halfInning', 'isTopInning',
+    'isScoringPlay', 'result', 'eventType', 'description', 'isOut', 'rbi', 'awayScore',
+    'homeScore', 'count', 'balls', 'strikes', 'outs', 'matchup', 'batter', 'pitcher', 'id',
+    'fullName', 'playEvents', 'details', 'call', 'reviewDetails', 'isOverturned', 'inProgress',
+    'reviewType', 'challengeTeamId', 'runners', 'isScoringEvent', 'playIndex', 'movement',
+    'index', 'isPitch', 'pitchNumber', 'startTime', 'endTime', 'hasOutcome',
+    /* liveData.linescore - official score, inning, outs, count, runners */
+    'linescore', 'currentInning', 'currentInningOrdinal', 'inningState', 'scheduledInnings',
+    'teams', 'runs', 'hits', 'errors', 'leftOnBase', 'offense', 'first', 'second', 'third',
+    'isWinner',
+  ].join(',');
+
+  function liveGame(gamePk, opts) {
+    opts = opts || {};
+    var url = API_ROOT + '/v1.1/game/' + gamePk + '/feed/live?fields=' + encodeURIComponent(LIVE_GAME_FIELDS);
+    return getJSON(url, { signal: opts.signal, retries: opts.retries === undefined ? 0 : opts.retries })
+      .then(function (data) {
+        if (!data || !data.liveData || !data.liveData.plays) {
+          throw ApiError('Projected live feed returned no plays for ' + gamePk, 0, url);
+        }
+        data.__source = 'feed/live';
+        return data;
+      })
+      .catch(function (err) {
+        /* Honour the shared 429 quiet period and cancellations; anything else
+         * (projection rejected, 404, 5xx, timeout) falls back to playByPlay. */
+        if (err && (err.status === 429 || (err.quiet && err.quiet !== false))) throw err;
+        if (opts.signal && opts.signal.aborted) throw err;
+        return playByPlay(gamePk, { signal: opts.signal, retries: 0 }).then(function (pbp) {
+          pbp.__source = 'playByPlay';
+          return pbp;
+        });
+      });
+  }
+
   /* Lean per-game status projection for the game page's 125ms watcher (~150 B). */
   function gameStatusLean(gamePk, opts) {
     opts = opts || {};
@@ -400,6 +459,8 @@
     scheduleRange: scheduleRange,
     slateStatus: slateStatus,
     gameFeed: gameFeed,
+    liveGame: liveGame,
+    LIVE_GAME_FIELDS: LIVE_GAME_FIELDS,
     gameStatusLean: gameStatusLean,
     playByPlay: playByPlay,
     boxscore: boxscore,

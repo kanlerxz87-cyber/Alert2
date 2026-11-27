@@ -24,6 +24,7 @@
   <header class="topbar topbar-game">
     <a class="btn btn-ghost" href="index.html">← Scoreboard</a>
     <a class="btn btn-feed" href="reviews.html" title="Live replay review feed for every game">🚨 Replay Feed</a>
+    <a class="btn btn-ghost" href="scoring.html" title="Official scoring pending rulings and scoring changes — a separate, persistent log">✏️ Scoring Log</a>
     <div class="game-controls">
       <button id="refresh-btn" class="btn">Refresh</button>
       <span class="countdown" id="countdown"></span>
@@ -45,6 +46,9 @@
 
     <!-- live module: at bat / pitching -->
     <section id="live-panel" class="live-panel"></section>
+
+    <!-- The second this page observed the official state shown above. -->
+    <div id="capture-line" class="capture-line"></div>
 
     <!-- linescore -->
     <section id="linescore-wrap" class="panel"></section>
@@ -90,6 +94,7 @@
   <script src="assets/js/api.js"></script>
   <script src="assets/js/ui.js"></script>
   <script src="assets/js/reviews.js"></script>
+  <script src="assets/js/game-state.js"></script>
   <script src="assets/js/feed-log.js"></script>
   <script src="assets/js/props.js"></script>
   <script src="assets/js/game.js"></script>

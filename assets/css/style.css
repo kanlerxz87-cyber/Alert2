@@ -1100,3 +1100,234 @@ table.verify td.wrap { white-space: normal; min-width: 260px; }
   .spinner { animation-duration: 2s; }
   .game-card:hover { transform: none; }
 }
+
+/* ==========================================================================
+ * Captured game state + the independent official scoring log
+ *
+ * .state-pair  — the before / after boxes on a replay-feed row
+ * .live-state  — every game on the slate with its latest captured state
+ * .scoring-*   — scoring.html sections and cards
+ * Everything here is presentation only; every value is rendered from the
+ * official payload snapshot built in assets/js/game-state.js.
+ * ========================================================================*/
+
+.volume-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dim);
+  font-size: 12px;
+}
+.volume-control input[type="range"] {
+  width: 74px;
+  accent-color: var(--amber);
+  cursor: pointer;
+}
+
+/* ---- before / after state pair ---------------------------------------- */
+.state-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+}
+.state-box {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 16, 24, .45);
+  padding: 8px 9px;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.state-box.is-missing { opacity: .72; border-style: dashed; }
+.state-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10.5px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: #ffd8a8;
+  font-weight: 700;
+}
+.state-clock {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  font-weight: 400;
+}
+.state-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+.state-grid dt { color: var(--dim); white-space: nowrap; }
+.state-grid dd { margin: 0; color: #dbe4ee; font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.state-play {
+  font-size: 12px;
+  color: #dfe7f1;
+  border-top: 1px dashed var(--line-soft);
+  padding-top: 6px;
+  line-height: 1.5;
+}
+.state-missing, .state-note { font-size: 11.5px; color: var(--dim); }
+.state-wording {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 8px 9px;
+  border-left: 2px solid var(--amber);
+  background: rgba(245, 159, 0, .06);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #e6edf5;
+}
+.wording-line b {
+  color: #ffd8a8;
+  font-size: 10.5px;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  margin-right: 8px;
+}
+.wording-type {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #ffd8a8;
+  margin-right: 6px;
+}
+
+/* ---- live game state board -------------------------------------------- */
+.live-state-wrap:empty { display: none; }
+.live-state { margin-bottom: 14px; }
+.live-state-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.live-state-head h3 {
+  margin: 0;
+  font-size: 11.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.live-state-note { font-size: 11.5px; color: var(--dim); }
+.ls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+}
+.ls-card {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  padding: 9px 10px;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.ls-card.is-live { border-color: var(--amber); box-shadow: inset 3px 0 0 var(--amber); }
+.ls-card.is-final { opacity: .86; }
+.ls-card.is-preview { opacity: .72; }
+.ls-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12.5px;
+}
+.ls-top a { color: #e8eef6; text-decoration: none; }
+.ls-top a:hover { text-decoration: underline; }
+.ls-status {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--dim);
+}
+.ls-clock {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+.ls-score {
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ls-score b { font-family: var(--mono); font-size: 16px; color: #fff; }
+.ls-line { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+.ls-matchup { color: #dbe4ee; }
+.ls-play { font-size: 11.5px; color: #cfd9e4; line-height: 1.45; font-style: italic; }
+.ls-foot { font-size: 10.5px; color: var(--dim); font-family: var(--mono); }
+.ls-flags { display: flex; flex-wrap: wrap; gap: 4px; }
+.ls-awaiting { font-size: 11.5px; color: var(--dim); }
+
+/* ---- official scoring log page ---------------------------------------- */
+.scoring-intro { margin-bottom: 14px; }
+.scoring-intro h2 { margin: 0 0 8px; font-size: 17px; }
+.scoring-intro p { margin: 0 0 8px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+.scoring-intro-note { font-size: 12px !important; color: var(--muted) !important; }
+.scoring-intro code { font-size: 11px; color: #ffd8a8; }
+.scoring-section { margin-bottom: 18px; }
+.scoring-section-title {
+  font-size: 12px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.scoring-list { display: grid; gap: 10px; }
+.scoring-card {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+}
+.scoring-card.is-open { border-color: var(--amber); box-shadow: inset 3px 0 0 var(--amber); }
+.scoring-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.scoring-head a { color: #e8eef6; }
+.scoring-time { font-family: var(--mono); color: var(--amber); font-variant-numeric: tabular-nums; }
+.scoring-title { font-size: 13.5px; font-weight: 600; color: #e8eef6; }
+.scoring-note { font-size: 11.5px; color: var(--dim); }
+.scoring-more { font-size: 12px; color: var(--muted); }
+.scoring-more summary { cursor: pointer; color: #9db2c9; }
+.scoring-more ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+.obs-time { font-family: var(--mono); color: var(--amber); margin-right: 6px; }
+
+@media (max-width: 700px) {
+  .state-pair { grid-template-columns: 1fr; }
+  .ls-grid { grid-template-columns: 1fr; }
+  .volume-control { display: none; }
+}
+
+/* Game page: the second the official state was observed. */
+.capture-line {
+  max-width: 1000px;
+  margin: 0 auto 10px;
+  padding: 0 16px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.capture-line b { color: var(--amber); font-weight: 700; }

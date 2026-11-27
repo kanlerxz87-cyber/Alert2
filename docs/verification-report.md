@@ -172,3 +172,47 @@ Every item below was uncovered during a line-by-line audit of all HTML pages, JS
 | AF-6 | `server.mjs` & `feed-log.js` `atBatIndex === 0` falsy merge-key collision and `server.mjs` dotfile/symlink static serving | HTTP `403` on `/.git/HEAD`; distinct key `gamePk:0` | **Fixed:** `entryKey()` and `makeKey()` check `!== undefined && !== null && !== ''` so `atBatIndex: 0` never collapses to `""`, `server.mjs` preserves top-level entry fields during merges, and `server.mjs` blocks hidden dotfile paths (except `.nojekyll`) and symlinks (`fs.lstat`). | <https://github.com/snapquast73-boop/LIVPBP/blob/main/server.mjs> | Fixed & regression-tested |
 | AF-7 | Game `824960` (`2026-08-08`, BAL @ ATH, `atBatIndex: 80` Bot 10) carries `reviewDetails: {reviewType: "MJ", challengeTeamId: 110, isOverturned: false}` on a pitch event, yet `result.description` omits challenge wording | `reviewType: "MJ"`, `challengeTeamId: 110` | **Flagged for review:** structured `reviewDetails` and `result.description` differ in verbosity on mid-PA ABS challenges; the app reads structured `reviewDetails` + `challengeTeamId` without inventing missing prose. | <https://statsapi.mlb.com/api/v1/game/824960/playByPlay?fields=allPlays,about,atBatIndex,inning,halfInning,result,description,playEvents,index,details,reviewDetails,isOverturned,inProgress,reviewType,challengeTeamId> | Flagged |
 
+
+---
+
+## 8. Latency, alert sound, timestamped game state & the separate scoring log — session `arena/0ecafebd-alert2` (2026-11-27)
+
+Scope: make the Replay Feed as fast as a pull-only client can be, give the alert a sound that can
+be tolerated all season (with a way to test it), capture the official game state **to the second**
+around every review / pending ruling / scoring change, and move official-scoring pending rulings and
+scoring changes into their **own** persistent section that cannot disturb alerting.
+
+### 8.1 What changed, and the evidence for each claim
+
+| # | Claim | Evidence | Status |
+|---|---|---|---|
+| L-1 | One projected `feed/live` request per game per scan replaces the previous `playByPlay` + counters pair | `LIVE_GAME_FIELDS` in `assets/js/api.js`; projection checked against the live API 2026-11-27: `gameData.status`, `gameData.review`, `gameData.absChallenges`, `liveData.plays.currentPlay`, `liveData.linescore{teams.runs,offense,balls,strikes,outs}` all returned together — <https://statsapi.mlb.com/api/v1.1/game/824638/feed/live?fields=gameData,status,review,absChallenges,away,home,used,remaining,usedSuccessful,usedFailed,liveData,plays,currentPlay,linescore,teams,runs,offense,balls,strikes,outs> | Verified for the sections listed; the **full play-by-play leaf set in the same response is unverified here** (payload too large for the sandbox page fetcher, host not reachable from the shell) → `liveGame()` validates `liveData.plays` and falls back to `/playByPlay`. Flagged as `L-1` on `flagged.html` |
+| L-2 | Per-game, staggered scheduling (100 ms scheduler tick; 250 ms live cadence; 150 ms for a game with a review in progress; 1 s → 2.5 s → 15 s post-final inside a 30-minute grace) | `assets/js/reviews-feed.js` (`cadenceFor`, `tick`, `assignDueTimes`); the 125 ms lean slate status sweep still pulls a game out of band the instant its official status flips | Implemented; deterministic tests exercise the scan path |
+| L-3 | The hydrated schedule is refreshed every 3 s instead of every scan; statuses stay current through the 125 ms sweep | `SCHEDULE_REFRESH_MS`, `refreshSchedule()`, `sweep()` | Implemented |
+| L-4 | The alert is a synthesized ~3 s rain-drop signature (noise bed + six drops + warm pad + compressor + wet echo), muted/unmuted with a stored preference, **Test alert** audible while muted, volume adjustable | `assets/js/alert-sound.js`; `AlertSound.DURATION_MS === 3000` asserted in `tests/jsdom-render-test.mjs`; jsdom has no `AudioContext`, so the tests assert the *request* counters (`stats.attempts`) rather than sound | Implemented, subjective pleasantness unverified (`L-2`) |
+| L-5 | Every event that lands in the feed alerts — challenges, crew-chief/umpire reviews, boundary calls, ABS pitch challenges, pending rulings, scoring changes, runs at risk | `tools/smoke-test.mjs` §G-3 (alert counters); the queue never overlaps and drops duplicates inside 4 s | Verified by tests |
+| L-6 | Each observation becomes a timestamped official state: `capturedAt` (UTC to the second) + local clock, status, inning/half, score, outs, count, batter, pitcher, pitch count, runners on base, last play wording, and the payload source | `assets/js/game-state.js`; verified against the trimmed official fixture game 824638 (`10–8`, `outs 3`, `count 1-1`, `Bot 9`) — <https://statsapi.mlb.com/api/v1.1/game/824638/feed/live> | Verified on the official fixture |
+| L-7 | Every review / pending / scoring-change row carries **before** and **after** state plus the exact official wording observed at each moment | `reviews-feed.js` (`stateBefore` / `stateAfter` / `wording`), rendered as `.state-pair`; “before” is never overwritten, and absent observations say so | Verified by tests; the “not observed” rule is flagged as `L-5` |
+| L-8 | A live-state board shows every game on the slate with its last captured state and capture second | `#live-state` in `reviews.html`, `renderLiveState()` | Verified in jsdom (one card per slate game, ISO capture with seconds) |
+| L-9 | Official scoring pending / changes live in their own page, store, poll loop, server file and push stream | `scoring.html`, `assets/js/scoring-log.js` (`openStream`/`closeStream`), `data/scoring-log-<date>.json`, `GET/POST /api/scoring-log`, `GET /api/scoring-log/stream` (SSE) | Verified by jsdom persistence + push tests (a `scoring-log` frame re-renders and persists; the feed-log stream is never opened) and `tools/restoration-check.mjs` server round-trip (including “the alert log and the scoring log are separate stores”); a live `curl` SSE session received `event: scoring-log` after a POST |
+| L-10 | Records survive a refresh: localStorage per date + optional shared server log, merged by record id, never overwriting newer wording | `tests/jsdom-render-test.mjs` (pending record persisted in `localStorage`), `mergeStores` idempotence check, `restoration-check` round-trip | Verified |
+| L-11 | Text-only payload edits (description / RBI / score) are logged and **flagged**, not corrected; a pending ruling that vanishes stays unresolved | `scoring-log.js` (`kind: 'edit'`, `status: 'unresolved'`), rendered with the flag chips | Implemented |
+
+### 8.2 Checks run on this pass
+
+```text
+node tests/run-all.mjs               -> syntax OK, 59 local refs OK, 12 bindings OK, 88/88 jsdom
+npm test (tools/smoke-test.mjs)      -> 71 passed, 0 failed
+node tests/props-provenance-test.mjs -> 5 passed, 0 failed
+node tools/restoration-check.mjs     -> ALL CHECKS PASSED (incl. /scoring.html and the two separate logs)
+```
+
+### 8.3 Items that cannot be verified from this environment
+
+* The combined projection's **full play-by-play leaf set** in one response (`L-1` on `flagged.html`).
+  `statsapi.mlb.com` is not reachable from the sandbox shell; the platform page fetcher was used for the
+  smaller projections. The fallback keeps the previous, previously-audited data path intact.
+* Whether the alert sound is pleasant for a full season (`L-2`) — a listening judgement, not a test.
+* Live in-game observations of a real review / scoring change with this build (the 2026 season is over
+  during this session). The behaviour is exercised against official fixture payloads and synthetic
+  official-shaped plays; the live path is the same code.

@@ -28,6 +28,7 @@
       <span class="brand-sub">replay feed · all games</span>
     </div>
     <a class="btn btn-ghost" href="index.html">← Scoreboard</a>
+    <a class="btn btn-ghost" href="scoring.html" title="Official scoring pending rulings and scoring changes — a separate, persistent log that does not touch the alert system">✏️ Scoring Log</a>
     <div class="date-nav">
       <button class="btn btn-ghost" onclick="ReplayFeed.prevDay()" title="Previous day">←</button>
       <input type="date" id="date-picker" onchange="ReplayFeed.pickDate()" aria-label="Game date">
@@ -36,7 +37,12 @@
     </div>
     <div id="date-label" class="date-label"></div>
     <div class="feed-controls">
-      <button id="sound-toggle-btn" class="btn btn-ghost" title="Toggle alert sound — a gentle raindrop chime for new challenges/reviews/boundary calls, official-scorer pending rulings and official scoring changes (not ABS), and the same chime whenever an active review could remove a run already on the scoreboard">🔇 Sound Off</button>
+      <button id="sound-toggle-btn" class="btn btn-ghost" aria-pressed="false" title="Toggle the alert sound — a ~3 second rain-drop alert for every event that lands in the feed: challenges, reviews, boundary calls, ABS pitch challenges, official-scorer pending rulings, official scoring changes and runs at risk">🔇 Sound Off</button>
+      <button id="sound-test-btn" class="btn btn-ghost" title="Play the alert sound once, so you can check the alert system is working. Audible even while the sound is muted.">🔔 Test alert</button>
+      <label class="volume-control" title="Alert volume — kept low by default so it can be heard all day">
+        <span aria-hidden="true">🔊</span>
+        <input id="sound-volume" type="range" min="5" max="100" step="5" value="55" aria-label="Alert volume">
+      </label>
       <button id="notify-toggle-btn" class="btn btn-ghost" title="Toggle desktop notifications for run-at-risk reviews — a popup the moment an active review could take a run off the scoreboard">⚪ Run Alerts Off</button>
       <button id="refresh-btn" class="btn">Refresh</button>
       <span class="countdown" id="countdown" title="Seconds until the next poll"></span>
@@ -50,6 +56,10 @@
 
   <main class="reviews-main">
     <section id="active-strip" class="active-strip-wrap"></section>
+
+    <!-- Official game state for every game on the slate, captured every poll
+         and time-stamped to the second (assets/js/game-state.js). -->
+    <section id="live-state" class="live-state-wrap"></section>
 
     <section id="feed-stats" class="reviews-summary-bar"></section>
 
@@ -107,6 +117,12 @@
       scoring baselines and the flagged irregularities before the first scan runs; the log holds
       only observed payload data, and anything malformed in it is dropped with a console warning
       rather than guessed.
+      Official scorer <strong>pending rulings</strong> and <strong>scoring changes</strong> are
+      collected on their own page, <a href="scoring.html">✏️ Official Scoring Log</a> — its own poll
+      loop, its own store and its own server file, so it can never disturb the alert path above.
+      Every game on the slate also has a live, timestamped official game state (score, outs, count,
+      batter, pitcher, pitch count, runners) captured to the second, and each row keeps the state and
+      official wording from before and after its event.
       Not affiliated with MLB or MLB Advanced Media.
       <a href="flagged.html">⚑ Flagged for Review</a> — verification log and unverified items.
     </p>
@@ -115,7 +131,10 @@
   <script src="assets/js/api.js"></script>
   <script src="assets/js/ui.js"></script>
   <script src="assets/js/reviews.js"></script>
+  <script src="assets/js/game-state.js"></script>
+  <script src="assets/js/alert-sound.js"></script>
   <script src="assets/js/feed-log.js"></script>
+  <script src="assets/js/scoring-log.js"></script>
   <script src="assets/js/reviews-feed.js"></script>
 </body>
 </html>

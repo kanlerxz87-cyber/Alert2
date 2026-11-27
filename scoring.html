@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLB Live PBP — Official Scoring Log</title>
+  <meta name="description" content="A persistent, independent log of every official-scorer pending ruling and official scoring change across all MLB games, with the exact official wording and the timestamped game state before and after.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23fff' stroke='%23e03131' stroke-width='6'/%3E%3Cpath d='M50 4 A46 46 0 0 1 96 50 M50 96 A46 46 0 0 1 4 50 M4 50 A46 46 0 0 1 50 4 M96 50 A46 46 0 0 1 50 96' stroke='%23e03131' stroke-width='2.5' fill='none'/%3E%3C/svg%3E">
+  <!-- Same data host, preconnected before the first poll (see index.html). -->
+  <link rel="preconnect" href="https://statsapi.mlb.com" crossorigin>
+  <link rel="dns-prefetch" href="https://statsapi.mlb.com">
+  <link rel="dns-prefetch" href="https://www.mlbstatic.com">
+  <link rel="dns-prefetch" href="https://img.mlbstatic.com">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="page-scoring">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-ball">⚾</span>
+      <span>MLB Live PBP</span>
+      <span class="brand-sub">official scoring log</span>
+    </div>
+    <a class="btn btn-ghost" href="index.html">← Scoreboard</a>
+    <a class="btn btn-feed" href="reviews.html" title="Live replay review feed for every game">🚨 Replay Feed</a>
+    <div class="date-nav">
+      <button class="btn btn-ghost" onclick="ScoringLog.prevDay()" title="Previous day">←</button>
+      <input type="date" id="date-picker" onchange="ScoringLog.pickDate()" aria-label="Game date">
+      <button class="btn btn-ghost" onclick="ScoringLog.nextDay()" title="Next day">→</button>
+      <button class="btn" onclick="ScoringLog.today()">Today</button>
+    </div>
+    <div id="date-label" class="date-label"></div>
+    <div class="feed-controls">
+      <button id="export-btn" class="btn" title="Download this date's log as JSON — the same data that is persisted locally and, when server.mjs is running, on the shared server">⬇ Export JSON</button>
+      <button id="refresh-btn" class="btn">Refresh</button>
+      <span class="countdown" id="countdown" title="Independent poll loop — this page never shares the alert path"></span>
+      <div class="live-pill" title="Polling the MLB StatsAPI directly">
+        <span id="live-dot" class="live-dot"></span><span>LIVE</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="reviews-main">
+    <section class="panel scoring-intro">
+      <h2>Official scoring pending &amp; scoring changes</h2>
+      <p>
+        This section is deliberately <strong>separate from the alert system</strong>. It runs its own
+        poll loop, writes its own persisted store and never touches the Replay Feed's sound, queue or
+        rows — so a change here can never disrupt an alert, and muting the alerts never stops a ruling
+        from being logged.
+      </p>
+      <p class="scoring-intro-note">
+        Every record keeps the <strong>exact official wording</strong> observed before and after, and the
+        <strong>official game state</strong> (score, inning, outs, count, batter, pitcher, pitch count,
+        runners, status) captured <strong>to the second</strong>. Records survive a page refresh: the log is
+        saved per date in this browser and, when <code>node server.mjs</code> is running, in
+        <code>data/scoring-log-&lt;date&gt;.json</code> so every browser and session restores the same log.
+        Entries are never zero-filled, guessed or silently edited: text-only payload edits are
+        <em>flagged</em> for review, and a pending ruling that disappears without a final event type stays
+        marked unresolved.
+      </p>
+      <p class="scoring-intro-note">
+        Sources: pending rulings come from the API's own event-type registry
+        (<code>os_ruling_pending_primary</code> / <code>os_ruling_pending_prior</code> — description
+        “Official Scorer Ruling Pending”); scoring changes are detected by snapshotting every completed
+        play's official classification (<code>result.eventType</code> / <code>result.isOut</code> /
+        <code>count.outs</code> / <code>runners[]</code>) on every poll and diffing it against the previous
+        poll, because the payload carries no scoring-change marker. Attribution is by the Official Scorer,
+        the Elias Sports Bureau or after a club review —
+        <a href="https://www.mlb.com/official-information/scoring-changes" target="_blank" rel="noopener">mlb.com/official-information/scoring-changes</a>.
+      </p>
+    </section>
+
+    <section id="scoring-stats" class="reviews-summary-bar"></section>
+
+    <nav id="scoring-tabs" class="tabs" aria-label="Filter the scoring log"></nav>
+
+    <section class="scoring-section">
+      <h3 class="scoring-section-title">📝 Official scoring pending — at-bats not scored yet</h3>
+      <div id="scoring-pending" class="scoring-list" aria-live="polite"></div>
+    </section>
+
+    <section class="scoring-section">
+      <h3 class="scoring-section-title">✏️ Scoring changes &amp; flagged edits</h3>
+      <div id="scoring-changes" class="scoring-list" aria-live="polite"></div>
+    </section>
+
+    <div id="status-line" class="status-line"></div>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      Unofficial fan project. Live data via the public MLB StatsAPI
+      (<a href="https://statsapi.mlb.com" target="_blank" rel="noopener">statsapi.mlb.com</a>).
+      This log holds only values observed in official payloads, each timestamped when this page saw it;
+      a change whose initial call was never observed is not reconstructed. Not affiliated with MLB or MLB
+      Advanced Media.
+      <a href="flagged.html">⚑ Flagged for Review</a>
+    </p>
+  </footer>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/reviews.js"></script>
+  <script src="assets/js/game-state.js"></script>
+  <script src="assets/js/scoring-log.js"></script>
+</body>
+</html>

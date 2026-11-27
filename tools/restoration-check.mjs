@@ -19,7 +19,7 @@ let failures = 0;
 const ok = (cond, msg) => { console.log((cond ? 'PASS' : 'FAIL') + ' ' + msg); if (!cond) failures += 1; };
 
 // 1. local references
-const pages = ['index.html', 'game.html', 'reviews.html', '404.html', 'flagged.html'];
+const pages = ['index.html', 'game.html', 'reviews.html', 'scoring.html', '404.html', 'flagged.html'];
 const refs = new Set();
 for (const page of pages) {
   const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
@@ -64,14 +64,37 @@ try {
   ok(post.status === 200 && JSON.parse(post.body).ok === true, 'server: POST /api/feed-log');
   const get = await req('GET', '/api/feed-log?date=2024-06-01');
   ok(get.status === 200 && JSON.parse(get.body).date === '2024-06-01', 'server: GET /api/feed-log round-trip');
-  for (const p of ['/', '/index.html', '/game.html', '/reviews.html', '/flagged.html',
+  for (const p of ['/', '/index.html', '/game.html', '/reviews.html', '/scoring.html', '/flagged.html',
                    '/assets/css/style.css', '/assets/js/api.js', '/assets/js/game.js',
-                   '/assets/js/scoreboard.js', '/assets/js/reviews-feed.js']) {
+                   '/assets/js/scoreboard.js', '/assets/js/reviews-feed.js',
+                   '/assets/js/game-state.js', '/assets/js/alert-sound.js', '/assets/js/scoring-log.js']) {
     const res = await req('GET', p);
     ok(res.status === 200 && res.body.length > 0, `server: GET ${p} -> 200`);
   }
   const dotRes = await req('GET', '/.git/HEAD');
   ok(dotRes.status === 403, 'server: GET /.git/HEAD -> 403');
+  /* The independent official scoring log: its own endpoint and its own file. */
+  const scoringPayload = JSON.stringify({
+    v: 1, date: '2024-06-01', savedAt: Date.now(), classes: {}, scanned: {},
+    records: [{
+      id: '824638:12:pending', kind: 'pending', gamePk: 824638, matchupLabel: 'CIN @ CHC',
+      atBatIndex: 12, status: 'open', firstObservedAt: '2024-06-01T18:00:05Z',
+      lastObservedAt: '2024-06-01T18:00:05Z',
+      wordingBefore: { eventType: 'os_ruling_pending_primary', description: 'Official Scorer Ruling Pending' },
+    }],
+  });
+  const sPost = await req('POST', '/api/scoring-log', scoringPayload);
+  ok(sPost.status === 200 && JSON.parse(sPost.body).ok === true &&
+    JSON.parse(sPost.body).recordsCount === 1, 'server: POST /api/scoring-log');
+  const sGet = await req('GET', '/api/scoring-log?date=2024-06-01');
+  const sBody = JSON.parse(sGet.body);
+  ok(sGet.status === 200 && sBody.date === '2024-06-01' && sBody.records.length === 1 &&
+    sBody.records[0].wordingBefore.eventType === 'os_ruling_pending_primary',
+    'server: GET /api/scoring-log round-trip keeps the official wording');
+  const feedAfter = await req('GET', '/api/feed-log?date=2024-06-01');
+  ok(!/os_ruling_pending_primary/.test(feedAfter.body),
+    'server: the alert log and the scoring log are separate stores');
+
   const zeroMergeA = await req('POST', '/api/feed-log', JSON.stringify({
     v: 1, date: '2024-06-01', entries: [{ gamePk: 824638, kind: 'review', review: { atBatIndex: 0, outcome: 'Stands' } }],
   }));
@@ -83,6 +106,7 @@ try {
   // clean up the test artifact the POST wrote
   fs.rmSync(path.join(ROOT, 'data', 'feed-log-2024-06-01.json'), { force: true });
   fs.rmSync(path.join(ROOT, 'data', 'feed-log-index.json'), { force: true });
+  fs.rmSync(path.join(ROOT, 'data', 'scoring-log-2024-06-01.json'), { force: true });
   try { fs.rmdirSync(path.join(ROOT, 'data')); } catch { /* data/ pre-existed */ }
 } catch (e) {
   ok(false, 'server contract: ' + e.message);

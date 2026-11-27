@@ -26,6 +26,12 @@
   var PREVIEW_POLL_MS = 30000;
   var FINAL_POLL_MS = 60000;
   var STATUS_WATCH_MS = 125;
+  /* While a review is in flight the page probes the lean play-by-play endpoint
+   * every REVIEW_POLL_MS and only re-pulls the full feed when the review state
+   * flips — but it also re-pulls it once every IN_REVIEW_FULL_EVERY probes, so
+   * the timestamped official state (score/outs/count/pitch count) keeps
+   * advancing to the second during a long review instead of freezing. */
+  var IN_REVIEW_FULL_EVERY = 4;
 
   var state = {
     gamePk: null,
@@ -38,6 +44,7 @@
     forecast: null,
     forecastKey: '',
     inReview: false,
+    capturedAt: 0,
     reviewStatus: null,
     timer: null,
     watchTimer: null,
@@ -45,6 +52,7 @@
     nextPollAt: 0,
     pollInFlight: false,
     watchInFlight: false,
+    probeTicks: 0,
     abort: null,
     lastSignature: '',
     lastError: null,
@@ -802,6 +810,8 @@
 
     /* While a review is in flight, probe the lean play-by-play endpoint first
      * and pull the full feed only when the review state flips. */
+    if (state.inReview) state.probeTicks = (state.probeTicks || 0) + 1;
+    var fullFeedDue = !state.inReview || (state.probeTicks % IN_REVIEW_FULL_EVERY === 0);
     var pre = state.inReview
       ? MLB.playByPlay(state.gamePk, { fields: 'allPlays,about,atBatIndex,hasReview,isComplete,reviewDetails,inProgress,playEvents' })
         .then(function (lean) {
@@ -813,7 +823,7 @@
             return !!(p.about && p.about.hasReview === true && p.about.isComplete === false);
           });
           if (!stillReview) state.inReview = false;
-          return stillReview ? null : MLB.gameFeed(state.gamePk);
+          return (stillReview && !fullFeedDue) ? null : MLB.gameFeed(state.gamePk);
         })
         .catch(function () { return MLB.gameFeed(state.gamePk); })
       : MLB.gameFeed(state.gamePk);
@@ -822,8 +832,10 @@
       state.pollInFlight = false;
       if (!feed) { scheduleNext(); return; }
       state.feed = feed;
+      state.capturedAt = Date.now();
       state.lastError = null;
       state.plays = Reviews.playsOf(feed);
+      updateCaptureLine();
       deriveReviews();
 
       if (state.log) applyScoringChangesFromLog();
@@ -851,6 +863,28 @@
       }
       scheduleNext();
     });
+  }
+
+  /* The game page's own "captured to the second" line: the official state above
+   * (score, outs, count, pitch count) is what the last payload said, and this
+   * says exactly when this page observed it. */
+  function updateCaptureLine() {
+    var el = $('capture-line');
+    if (!el) return;
+    var feed = state.feed;
+    var at = state.capturedAt;
+    if (!feed || !at || !global.GameState) { el.textContent = ''; return; }
+    var snap = global.GameState.snapshot(feed, { gamePk: state.gamePk, at: at });
+    var bits = [];
+    if (snap.score) bits.push(global.GameState.scoreText(snap.score));
+    if (snap.inning && snap.inning.label) bits.push(snap.inning.label);
+    if (snap.outs !== null) bits.push(snap.outs + ' out' + (snap.outs === 1 ? '' : 's'));
+    if (snap.balls !== null && snap.strikes !== null) bits.push(snap.balls + '-' + snap.strikes);
+    if (snap.pitchCount && snap.pitchCount.total !== null) bits.push('P ' + snap.pitchCount.total);
+    el.innerHTML = 'State captured <b>' + UI.esc(global.GameState.localClock(at)) + '</b>' +
+      ' · ' + UI.esc(snap.capturedAt) +
+      (bits.length ? ' · ' + UI.esc(bits.join(' · ')) : '') +
+      (snap.source === 'playByPlay' ? ' · playByPlay fallback' : '');
   }
 
   function statusSummary() {
